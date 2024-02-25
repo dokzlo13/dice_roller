@@ -1,6 +1,59 @@
 
 # Dice Roller
 
+## Highlights
+
+```python
+from dice_roller import d, kh, x, r, kl, dh, rng
+
+def roll_info(roll: BaseDice):
+    print(f"For dice '{roll}' min is {roll.min()} and max is {roll.max()}")
+
+d20 = d(20)
+roll_info(d20)  # For dice 'd20' min is 1 and max is 20
+d20.roll()  # Get one roll result
+d20.generate(10)  # Generates 10 rolls as numpy array
+
+attack_roll = kh(d20) + d(4) + 3  # Roll to hit with advantage, use bless (+d4) and add +3 modifier
+roll_info(attack_roll)  # For dice '(d20kh1 + d4 + 3)' min is 5 and max is 27
+attack_results = attack_roll.generate(10_000)  # Generates 10000 rolls
+hit_ac = attack_results[attack_results >= 16]  # numpy stuff
+
+damage_roll = 2**(x() == 6)(d(6)) + 5  # Roll 2d6 (explode on 6), add 5
+roll_info(damage_roll)  # For dice '(2d6x6 + 5)' min is 7 and max is 17
+
+skill_check_roll = (r() == 1)(d20) + 4  # Roll d20 and reroll ones, add 4
+roll_info(skill_check_roll)  # For dice '(d20r1 + 4)' min is 5 and max is 24
+
+kl(skill_check_roll).roll()  # roll skill check roll with disadvantage
+
+fudge_dice = rng(-1, 2)  # fudge dice
+(4 ** fudge_dice).roll()  # roll 4 fudge dices, add results
+((d20 - 4) >= 1).roll()  # roll d20-4, ensure result greater than 0
+(d20 * 2).roll()  # roll d20, multiply by 2
+(d20 * d(6)).roll()  # roll d20 and d6, multiply results
+(dh(d20, drop=5, of=10)).roll()  # roll 10 d20, drop 5 highest and return sum of rest 
+(kh(d20, keep=2, of=5)).roll()  # roll 5 d20, keep 2 highest and return their sum 
+(r() == rng(1, 3))(d(6)) # roll d6, rerolls on 1 or 2 (new reroll value each roll)
+(x() > 4)(d(6)) # roll d6, explodes on 5 and 6
+10 ** d(10) * 10 ** d(10) # roll 2 sets of 10d10 and multiply results
+
+def statistical_report(dice: BaseDice):
+    print(f"Statistics for '{dice}'")
+    print(f"Std. Dev is {dice.std():.3f}")
+    print(f"Median is {dice.median():.3f}")
+    print(f"Avg is {dice.average():.3f}")
+    print(f"Mean is {dice.mean():.3f}")
+
+# Statistics for '(d20 + d4)'
+# Std. Dev is 5.872
+# Median is 13.000
+# Avg is 12.996
+# Mean is 13.005
+statistical_report(d20 + d(4))
+
+```
+
 ## Tutorial
 
 ### Basics
@@ -52,7 +105,7 @@ from dice_roller import Dice
 
 d20 = Dice(20)
 print(f"For dice '{d20}' min is {d20.min()} and max is {d20.max()}")
-# For dice 'd20' min is 1 and max is 
+# For dice 'd20' min is 1 and max is 20
 ```
 
 So far looks too boring, let's add some modifiers to this roll.
@@ -241,7 +294,7 @@ We already slipped through some basics arithmetical operations. What else we can
 
 #### Limits
 
-As you can see in basic arithmetic exables below, dice `d20-4` may outcome negative minimal value. It's because lowest result of the d20 roll is `1`, and `1-4=-3`.
+As you can see in basic arithmetic examles below, dice `d20-4` may outcome negative minimal value. It's because lowest result of the d20 roll is `1`, and `1-4=-3`.
 
 We can ensure dice outcome will be in bounds by providing limit, both with comparison operators overload or with `Min` and `Max` wrapper:
 
@@ -249,7 +302,7 @@ We can ensure dice outcome will be in bounds by providing limit, both with compa
 from dice_roller import Dice
 d20 = Dice(20)
 
-safe_roll = (d20 - 4) > 1 # roll of the (d20 - 4) must be greater then 1
+safe_roll = (d20 - 4) >= 1 # roll of the (d20 - 4) must be greater or equal to 1
 roll_info(safe_roll)
 
 from dice_roller import Min, Scalar

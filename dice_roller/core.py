@@ -161,7 +161,7 @@ class BaseDice(Protocol):
     __floordiv__ = __truediv__  # type: ignore
     __rfloordiv__ = __rtruediv__  # type: ignore
 
-    def __gt__(self, other):
+    def __ge__(self, other):
         if isinstance(other, int):
             other = Scalar(other)
 
@@ -172,7 +172,7 @@ class BaseDice(Protocol):
 
         return Min(dice=self, compare=other)  # type: ignore
 
-    def __lt__(self, other):
+    def __le__(self, other):
         if isinstance(other, int):
             other = Scalar(other)
 
