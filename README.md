@@ -4,7 +4,7 @@
 ## Highlights
 
 ```python
-from dice_roller import d, kh, x, r, kl, dh, rng
+from dice_roller import s, d, rng, x, r, kh, kl, dl, dh
 
 def roll_info(roll: BaseDice):
     print(f"For dice '{roll}' min is {roll.min()} and max is {roll.max()}")
@@ -14,29 +14,36 @@ roll_info(d20)  # For dice 'd20' min is 1 and max is 20
 d20.roll()  # Get one roll result
 d20.generate(10)  # Generates 10 rolls as numpy array
 
-attack_roll = kh(d20) + d(4) + 3  # Roll to hit with advantage, use bless (+d4) and add +3 modifier
-roll_info(attack_roll)  # For dice '(d20kh1 + d4 + 3)' min is 5 and max is 27
+modifier = s(5)  # Scalar, `dice_roller` converts integers to Scalar automatically, if you use suggested mathematical api.
+roll_info(modifier)  # For dice '5' min is 5 and max is 5
+roll_info(d20 + modifier)  # For dice '(d20 + 5)' min is 6 and max is 25
+
+attack_roll = kh(2@d20) + d(4) + 3  # Roll to hit with advantage, use bless (+d4) and add +3 modifier
+roll_info(attack_roll)  # For dice '(2d20kh + d4 + 3)' min is 5 and max is 27
 attack_results = attack_roll.generate(10_000)  # Generates 10000 rolls
 hit_ac = attack_results[attack_results >= 16]  # numpy stuff
 
-damage_roll = 2**(x() == 6)(d(6)) + 5  # Roll 2d6 (explode on 6), add 5
+damage_roll = 2@(x() == 6)(d(6)) + 5  # Roll 2d6 (explode on 6), add 5
 roll_info(damage_roll)  # For dice '(2d6x6 + 5)' min is 7 and max is 17
 
-skill_check_roll = (r() == 1)(d20) + 4  # Roll d20 and reroll ones, add 4
+skill_check_roll = (r(reroll_limit=1) == 1)(d20) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4
 roll_info(skill_check_roll)  # For dice '(d20r1 + 4)' min is 5 and max is 24
+kl(2@skill_check_roll).roll()  # roll skill check roll with disadvantage
 
-kl(skill_check_roll).roll()  # roll skill check roll with disadvantage
+fudge_dice = rng(-1, 2)                 # fudge dice
+4@fudge_dice                            # roll 4 fudge dices, add results together
+(d20 - 4) >= 1                          # roll d20-4, ensure result greater or equal to 1
+d20 * 2                                 # roll d20, multiply by 2
+d20 * d(6)                              # roll d20 and d6, multiply results
+dh(10@d20, drop=5)                      # roll 10 d20, drop 5 highest and return sum of rest 
+kh(5@d20, keep=2)                       # roll 5 d20, keep 2 highest and return their sum 
+(r() == rng(1, 3))(d(6))                # roll d6, rerolls on 1 or 2 (new reroll value each roll)
+(x(explode_depth=10) > 4)(d(6))         # roll d6, explodes on 5 and 6. Maximum 10 explodes
+10@d(10) * 10@d(10)                     # roll 2 sets of 10d10 and multiply results
+4@d(4) @ d(10)                          # roll 4d4 of d10 dices
 
-fudge_dice = rng(-1, 2)  # fudge dice
-(4 ** fudge_dice).roll()  # roll 4 fudge dices, add results
-((d20 - 4) >= 1).roll()  # roll d20-4, ensure result greater than 0
-(d20 * 2).roll()  # roll d20, multiply by 2
-(d20 * d(6)).roll()  # roll d20 and d6, multiply results
-(dh(d20, drop=5, of=10)).roll()  # roll 10 d20, drop 5 highest and return sum of rest 
-(kh(d20, keep=2, of=5)).roll()  # roll 5 d20, keep 2 highest and return their sum 
-(r() == rng(1, 3))(d(6)) # roll d6, rerolls on 1 or 2 (new reroll value each roll)
-(x() > 4)(d(6)) # roll d6, explodes on 5 and 6
-10 ** d(10) * 10 ** d(10) # roll 2 sets of 10d10 and multiply results
+# roll d6 of (roll d4 of d20 dice, keep 1 highest) and drop d4 lowest. Ensure (d4 explodes on 4) <= result <= (d100 reroll <= 50).
+((dl(d(6) @ kl(d(4) @ d(20)), drop=d(4)) >= (x() == 4)(d(4))) <= ((r() <= 50)(d(100))))
 
 def statistical_report(dice: BaseDice):
     print(f"Statistics for '{dice}'")
@@ -326,7 +333,7 @@ Your D&D wizard throws fireball, and you want to roll 8d6 fire damage? Easy:
 from dice_roller import Dice
 
 d6 = Dice(6)
-dice_8d6 = 8 ** d6
+dice_8d6 = 8@d6
 
 print(f"Fireball deals '{dice_8d6}' damage:")
 print(f"At least: {dice_8d6.min()}")
@@ -355,21 +362,21 @@ You can also create `dice` roll of `dice`:
 ```python
 from dice_roller import Dice
 
-dice_d4d6 = Dice(4) ** Dice(6)
+dice_d4d6 = Dice(4)@Dice(6)
 ```
 
 In this case, `dice_roller` will first roll `d4` for amount of `d6` dices to roll, and then roll this amount of `d6` and add them together to calculate outcome.
 
 #### Keep Highest
 
-This modifier causes the `dice_roller` to keep and add together a number of dice you specify, selecting the highest of the roll results available. Without a specified args it will keep the single highest number of two. If the number of dice to roll (`of`) is less than the number of dice being kept (`keep`), an exception will be raised on construction.
+This modifier causes the `dice_roller` to keep and add together a number of dice you specify, selecting the highest of the roll results available. Without a specified args it will keep the single highest number of two. If the number of dice to roll (`of`) is less than the number of dice being kept (`keep`) then it will keep all the rolls made.
 
 Let's simulate D&D 5e "Advantage"
 
 ```python
 from dice_roller import Dice, KeepHighest
 
-d20advantage = KeepHighest(Dice(20))  # by default, selects 1 highest dice of 2 rolled.
+d20advantage = KeepHighest(2@Dice(20))  # by default, selects 1 highest dice of 2 dice rolled.
 ```
 
 You can override amount of tries and amount of rolls, which will be added in final roll:
@@ -377,19 +384,29 @@ You can override amount of tries and amount of rolls, which will be added in fin
 ```python
 from dice_roller import Dice, kh  # kh is alias for KeepHighest
 
-d20_high_2of5 = kh(Dice(20), keep=2, of=5)  # Keeps and add together 2 highest rolls of 5 rolled
+d20_keep_2_high_of_5 = kh(5@Dice(20), keep=2)  # Keeps and add together 2 highest rolls of 5 rolled
+```
+
+You can use complex dice expressions with KeepHighest, `keep` field also supports `BaseDice` object:
+
+```python
+from dice_roller import d, kh
+
+kh(4 @ d(20), keep=d(4))  # roll 4d20, keep d4 highest
+kh(d(4) @ d(20), keep=(d(4) / 2) >= 1)  # roll d4 of d20 dice, keep d4/2 (at least one) highest
+kh(d(6) @ kh(d(4) @ d(20)), keep=d(4))  # roll d6 of (roll d4 of d20 dice, keep 1 highest) and keep d4 highest
 ```
 
 #### Keep Lowest
 
-This modifier causes the `dice_roller` to keep and add together a number of dice you specify, selecting the lowest of the roll results available. Without a specified args it will keep the single lowest number of two. If the number of dice to roll (`of`) is less than the number of dice being kept (`keep`), an exception will be raised on construction.
+This modifier causes the `dice_roller` to keep and add together a number of dice you specify, selecting the lowest of the roll results available. Without a specified args it will keep the single lowest number of two. If the number of dice to roll (`of`) is less than the number of dice being kept (`keep`) then it will keep all the rolls made.
 
 Let's simulate D&D 5e "Disadvantage"
 
 ```python
 from dice_roller import Dice, KeepLowest
 
-d20disadvantage = KeepLowest(Dice(20))  # by default, selects 1 lowest dice of 2 rolled.
+d20disadvantage = KeepLowest(2@Dice(20))  # by default, selects 1 lowest dice of 2 dice rolled.
 ```
 
 You can override amount of tries and amount of rolls, which will be added in final roll:
@@ -397,48 +414,78 @@ You can override amount of tries and amount of rolls, which will be added in fin
 ```python
 from dice_roller import Dice, kl  # kl is alias for KeepLowest
 
-d20_low_2of5 = kl(Dice(20), keep=2, of=5)  # Keeps and add together 2 lowest rolls of 5 rolled
+d20_keep_2_low_of_5 = kl(5@Dice(20), keep=2)  # Keeps and add together 2 lowest rolls of 5 rolled
+```
+
+You can use complex dice expressions with KeepLowest, `keep` field also supports `BaseDice` object:
+
+```python
+from dice_roller import d, kl
+
+kl(4 @ d(20), keep=d(4))  # roll 4d20, keep d4 lowest
+kl(d(4) @ d(20), keep=(d(4) / 2) >= 1)  # roll d4 of d20 dice, keep d4/2 (at least one) lowest
+kl(d(6) @ kl(d(4) @ d(20)), keep=d(4))  # roll d6 of (roll d4 of d20 dice, keep 1 lowest) and keep d4 lowest
 ```
 
 #### Drop Highest
 
-This modifier causes the `dice_roller` to drop a number of dice you specify, selecting the highest of the roll results available. Rest of the rolls added together. If no args specified, then it will drop the one highest number rolled of two. If the number of dice to roll (`of`) is less than the number of dice to drop (`drop`), an exception will be raised on construction.
+This modifier causes the `dice_roller` to drop a number of dice you specify, selecting the highest of the roll results available. Rest of the rolls added together. If no args specified, then it will drop the one highest number rolled of two. If the number of dice to roll (`of`) is less than the number of dice to drop (`drop`), then it will keep all the rolls made.
 
-We can simulate D&D 5e  "Disadvantage" mechanic with this modifier:
+We can also simulate D&D 5e "Disadvantage" mechanic with this modifier:
 
 ```python
 from dice_roller import Dice, DropHighest
 
-d20disadvantage = DropHighest(Dice(20))  # by default, drops 1 highest dice of 2 rolled.
+d20disadvantage = DropHighest(2@Dice(20))  # by default, drops 1 highest dice of 2 dice rolled.
 ```
 
 ```python
 from dice_roller import Dice, dh  # dh is alias for DropHighest
 
-d20_drop_high_2of5 = dh(Dice(20), drop=2, of=5)  # Drop 2 highest rolls and add together rest of 5 rolled
+d20_drop_high_2of5 = dh(5@Dice(20), drop=2)  # Drop 2 highest rolls and add together rest of 5 rolled
+```
+
+You can use complex dice expressions with DropHighest, `drop` field also supports `BaseDice` object:
+
+```python
+from dice_roller import d, dh
+
+dh(4 @ d(20), drop=d(4))  # roll 4d20, drop d4 highest
+dh(d(4) @ d(20), drop=(d(4) / 2) >= 1)  # roll d4 of d20 dice, drop d4/2 (at least one) highest
+dh(d(6) @ dh(d(4) @ d(20)), drop=d(4))  # roll d6 of (roll d4 of d20 dice, drop 1 highest) and drop d4 highest
 ```
 
 #### Drop Lowest
 
-This modifier causes the `dice_roller` to drop a number of dice you specify, selecting the lowest of the roll results available. Rest of the rolls added together. If no args specified, then it will drop the one lowest number rolled of two. If the number of dice to roll (`of`) is less than the number of dice to drop (`drop`), an exception will be raised on construction.
+This modifier causes the `dice_roller` to drop a number of dice you specify, selecting the lowest of the roll results available. Rest of the rolls added together. If no args specified, then it will drop the one lowest number rolled of two. If the number of dice to roll (`of`) is less than the number of dice to drop (`drop`), then it will keep all the rolls made.
 
 We can simulate D&D 5e  "Advantage" mechanic with this modifier:
 
 ```python
 from dice_roller import Dice, DropLowest
 
-d20advantage = DropLowest(Dice(20))  # by default, drops 1 lowest dice of 2 rolled.
+d20advantage = DropLowest(2@Dice(20))  # by default, drops 1 lowest dice of 2 dice rolled.
 ```
 
 ```python
 from dice_roller import Dice, dl  # dl is alias for DropLowest
 
-d20_drop_low_2of5 = dl(Dice(20), drop=2, of=5)  # Drop 2 lowest rolls and add together rest of 5 rolled
+d20_drop_low_2of5 = dl(5@Dice(20), drop=2)  # Drop 2 lowest rolls and add together rest of 5 rolled
+```
+
+You can use complex dice expressions with DropLowest, `drop` field also supports `BaseDice` object:
+
+```python
+from dice_roller import d, dl
+
+dl(4 @ d(20), drop=d(4))  # roll 4d20, drop d4 highest
+dl(d(4) @ d(20), drop=(d(4) / 2) >= 1)  # roll d4 of d20 dice, drop d4/2 (at least one) lowest
+dl(d(6) @ dl(d(4) @ d(20)), drop=d(4))  # roll d6 of (roll d4 of d20 dice, drop 1 lowest) and drop d4 lowest
 ```
 
 #### Reroll
 
-Rerolls the die based on the set condition, keeping the outcome regardless of whether it is better. Reroll will only reroll the die once, for continual rerolling see `Explode` below.
+Rerolls the die based on the set condition, keeping the outcome regardless of whether it is better. Reroll will only reroll the die and use new result, for continual rerolling with sum see `Explode` below.
 
 This modifier requires specifying extra condition. Here is example:
 
@@ -565,15 +612,4 @@ from dice_roller import x, d
 
 (x() == 6).roll()  # is not okay
 (x() == 6)(d(6)).roll()  # is okay
-```
-
----
-
-Let's create simple drawing function
-
-```python
-def roll_historgam(roll, simulations: int = 1_000_000):
-    sns.histplot(roll.generate(simulations), bins=roll.max(), discrete=True, stat="count")
-    plt.xticks(np.arange(roll.min(), roll.max() + 1))
-    plt.show()
 ```

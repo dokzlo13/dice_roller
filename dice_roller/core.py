@@ -45,7 +45,7 @@ class BaseDice(Protocol):
     def roll(self) -> int:
         return np.sum(self.generate(1))
 
-    def __pow__(self, other):
+    def __matmul__(self, other):
         if isinstance(other, int):
             other = Scalar(other)
 
@@ -54,7 +54,7 @@ class BaseDice(Protocol):
 
         return DiceMany(total=self, dice=other)
 
-    def __rpow__(self, other):
+    def __rmatmul__(self, other):
         if isinstance(other, int):
             other = Scalar(other)
 

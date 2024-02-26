@@ -5,153 +5,194 @@ from dataclasses import dataclass, field
 import numpy as np
 from numpy.typing import ArrayLike
 
-from .core import BaseDice
+from .core import BaseDice, DiceMany, Scalar
 
 
 @dataclass
 class KeepHighest(BaseDice):
     dice: BaseDice
-    of: int = field(default=2)
-    keep: int = field(default=1)
+    keep: BaseDice = field(default_factory=lambda: Scalar(1))
+    of: BaseDice = field(default_factory=lambda: Scalar(1))
 
     def __post_init__(self):
-        # Validate that `of` is greater than or equal to `keep`
-        if self.of < self.keep:
-            raise ValueError("`of` must be greater than or equal to `keep`")
+        if isinstance(self.dice, DiceMany):
+            self.of = self.dice.total
+            self.dice = self.dice.dice
+        if isinstance(self.keep, int):
+            self.keep = Scalar(self.keep)
 
     def __str__(self) -> str:
-        str_repr = f"{self.dice}kh{self.keep}"
-        if self.of != 2:
-            str_repr += f"of{self.of}"
-        return str_repr
+        keep = str(self.keep)
+        if isinstance(self.keep, Scalar) and self.keep.value == 1:
+            keep = ""
+        return f"{self.of}{self.dice}kh{keep}"
 
     def max(self) -> int:
-        return self.dice.max() * self.keep
+        # Assuming the best rolls are kept, the maximum is the highest dice value times the maximum number of keeps,
+        # but it cannot exceed the total number of dice rolled.
+        return self.dice.max() * min(self.keep.max(), self.of.max())
 
     def min(self) -> int:
-        return self.dice.min() * self.keep
+        # If keeping less than or equal to the number of dice rolled, the minimum would still be the dice's minimum value
+        # times the minimum number of keeps, as we're assuming the least favorable (lowest) high rolls are kept.
+        return self.dice.min() * self.keep.min()
 
     def generate(self, items: int) -> ArrayLike:
-        # Initialize a result array
-        result = np.zeros((self.of, items), dtype=np.int_)
-        for i in range(self.of):
-            result[i, :] = self.dice.generate(items)
+        of_rolls = self.of.generate(items)
+        dice_rolls = self.dice.generate(np.sum(of_rolls))
+        keep_rolls = self.keep.generate(items)
+        results = np.empty(items, dtype=np.int_)
 
-        # Sort each column and sum the `keep` highest values
-        sorted_result = np.sort(result, axis=0)
-        top_keeps = sorted_result[-self.keep :, :]  # Get the `keep` highest rolls
-        return np.sum(top_keeps, axis=0)  # Sum the `keep` highest values for each item
+        start_idx = 0
+        for i in range(items):
+            num_rolls = of_rolls[i]  # type: ignore
+            keep = min(keep_rolls[i], num_rolls)  # type: ignore
+            results[i] = np.sum(np.sort(dice_rolls[start_idx : start_idx + num_rolls])[-keep:])  # type: ignore
+            start_idx += num_rolls  # type: ignore
+
+        return results
 
 
 @dataclass
 class KeepLowest(BaseDice):
     dice: BaseDice
-    of: int = field(default=2)
-    keep: int = field(default=1)
+    keep: BaseDice = field(default_factory=lambda: Scalar(1))
+    of: BaseDice = field(default_factory=lambda: Scalar(1))
 
     def __post_init__(self):
+        if isinstance(self.dice, DiceMany):
+            self.of = self.dice.total
+            self.dice = self.dice.dice
+        if isinstance(self.keep, int):
+            self.keep = Scalar(self.keep)
+
         # Validate that `of` is greater than or equal to `keep`
-        if self.of < self.keep:
+        if self.of.max() <= self.keep.max():
             raise ValueError("`of` must be greater than or equal to `keep`")
 
     def __str__(self) -> str:
-        str_repr = f"{self.dice}kl{self.keep}"
-        if self.of != 2:
-            str_repr += f"of{self.of}"
-        return str_repr
+        keep = str(self.keep)
+        if isinstance(self.keep, Scalar) and self.keep.value == 1:
+            keep = ""
+        return f"{self.of}{self.dice}kl{keep}"
 
     def max(self) -> int:
-        # Return the sum of `keep` highest possible dice roll values
-        # Since this is KeepLowest, we adapt the logic for max accordingly
-        return self.dice.max() * self.keep
+        # For keeping the lowest, the max is now the dice's max value times the minimum number of keeps,
+        # because even when keeping the lowest, the max scenario would involve the highest possible "low" values.
+        return self.dice.max() * min(self.keep.max(), self.of.max())
 
     def min(self) -> int:
-        # Return the sum of `keep` lowest possible dice roll values
-        return self.dice.min() * self.keep
+        # The minimum is the dice's minimum value times the number of keeps, assuming the lowest possible outcomes are kept.
+        return self.dice.min() * self.keep.min()
 
     def generate(self, items: int) -> ArrayLike:
-        # Initialize a result array
-        result = np.zeros((self.of, items), dtype=np.int_)
-        for i in range(self.of):
-            result[i, :] = self.dice.generate(items)
+        of_rolls = self.of.generate(items)
+        dice_rolls = self.dice.generate(np.sum(of_rolls))
+        keep_rolls = self.keep.generate(items)
+        results = np.empty(items, dtype=np.int_)
 
-        # Sort each column and sum the `keep` lowest values
-        sorted_result = np.sort(result, axis=0)
-        bottom_keeps = sorted_result[: self.keep, :]  # Get the `keep` lowest rolls
-        return np.sum(bottom_keeps, axis=0)  # Sum the `keep` lowest values for each item
+        start_idx = 0
+        for i in range(items):
+            num_rolls = of_rolls[i]  # type: ignore
+            keep = min(keep_rolls[i], num_rolls)  # type: ignore
+            results[i] = np.sum(np.sort(dice_rolls[start_idx : start_idx + num_rolls])[:keep])  # type: ignore
+            start_idx += num_rolls  # type: ignore
+
+        return results
 
 
 @dataclass
 class DropHighest(BaseDice):
     dice: BaseDice
-    of: int = field(default=2)
-    drop: int = field(default=1)
+    drop: BaseDice = field(default_factory=lambda: Scalar(1))
+    of: BaseDice = field(default_factory=lambda: Scalar(1))
 
     def __post_init__(self):
-        if self.of < self.drop:
-            raise ValueError("`of` must be greater than or equal to `drop`")
+        if isinstance(self.dice, DiceMany):
+            self.of = self.dice.total
+            self.dice = self.dice.dice
+        if isinstance(self.drop, int):
+            self.drop = Scalar(self.drop)
 
     def __str__(self) -> str:
-        str_repr = f"{self.dice}dh{self.drop}"
-        if self.of != 2:
-            str_repr += f"of{self.of}"
-        return str_repr
+        drop = str(self.drop)
+        if isinstance(self.drop, Scalar) and self.drop.value == 1:
+            drop = ""
+        return f"{self.of}{self.dice}dh{drop}"
 
     def max(self) -> int:
-        # Adapted to account for dropping the highest rolls
-        return self.dice.max() * (self.of - self.drop)
+        # Maximum possible value after dropping the highest rolls
+        return self.dice.max() * (self.of.max() - self.drop.min())
 
     def min(self) -> int:
-        # Adapted to account for dropping the highest rolls
-        return self.dice.min() * (self.of - self.drop)
+        # Minimum possible value after dropping the highest rolls
+        return self.dice.min() * max(0, self.of.min() - self.drop.max())
 
-    def generate(self, items: int) -> ArrayLike:
-        result = np.zeros((self.of, items), dtype=np.int_)
-        for i in range(self.of):
-            result[i, :] = self.dice.generate(items)
+    def generate(self, items: int) -> np.ndarray:
+        of_rolls = self.of.generate(items)
+        drop_rolls = self.drop.generate(items)
+        dice_rolls = self.dice.generate(np.sum(of_rolls))
 
-        sorted_result = np.sort(result, axis=0)
-        # Drop the `keep` highest rolls and sum the rest
-        if self.of > self.drop:
-            dropped_keeps = sorted_result[: -self.drop, :]
-        else:
-            dropped_keeps = np.zeros((0, items), dtype=np.int_)  # If dropping all, result is zeros
-        return np.sum(dropped_keeps, axis=0)
+        # Initialize results array
+        results = np.empty(items, dtype=np.int_)
+
+        start_idx = 0
+        for i in range(items):
+            num_rolls = of_rolls[i]  # type: ignore
+            drop = min(num_rolls, drop_rolls[i])  # type: ignore
+
+            sorted_rolls = np.sort(dice_rolls[start_idx : start_idx + num_rolls])  # type: ignore
+            results[i] = np.sum(sorted_rolls[:-drop] if drop > 0 else sorted_rolls)  # type: ignore
+
+            start_idx += num_rolls  # type: ignore
+
+        return results
 
 
 @dataclass
 class DropLowest(BaseDice):
     dice: BaseDice
-    of: int = field(default=2)
-    drop: int = field(default=1)
+    drop: BaseDice = field(default_factory=lambda: Scalar(1))
+    of: BaseDice = field(default_factory=lambda: Scalar(2))  # Adjusted default for consistency
 
     def __post_init__(self):
-        if self.of < self.drop:
-            raise ValueError("`of` must be greater than or equal to `drop`")
+        if isinstance(self.dice, DiceMany):
+            self.of = self.dice.total
+            self.dice = self.dice.dice
+        if isinstance(self.drop, int):
+            self.drop = Scalar(self.drop)
 
     def __str__(self) -> str:
-        str_repr = f"{self.dice}dl{self.drop}"
-        if self.of != 2:
-            str_repr += f"of{self.of}"
-        return str_repr
+        drop = str(self.drop)
+        if isinstance(self.drop, Scalar) and self.drop.value == 1:
+            drop = ""
+        return f"{self.of}{self.dice}dl{drop}"
 
     def max(self) -> int:
-        # Adapted to account for dropping the lowest rolls
-        return self.dice.max() * (self.of - self.drop)
+        # Maximum possible value after dropping the lowest rolls.
+        # The max calculation now considers the possibility of dropping less valuable rolls.
+        return self.dice.max() * (self.of.max() - self.drop.min())
 
     def min(self) -> int:
-        # Adapted to account for dropping the lowest rolls
-        return self.dice.min() * (self.of - self.drop)
+        # Minimum possible value after dropping the lowest rolls.
+        # Adjusted to consider the effect of dropping the lowest possible rolls.
+        return self.dice.min() * max(0, self.of.min() - self.drop.max())
 
-    def generate(self, items: int) -> ArrayLike:
-        result = np.zeros((self.of, items), dtype=np.int_)
-        for i in range(self.of):
-            result[i, :] = self.dice.generate(items)
+    def generate(self, items: int) -> np.ndarray:
+        of_rolls = self.of.generate(items)
+        drop_rolls = self.drop.generate(items)
+        dice_rolls = self.dice.generate(np.sum(of_rolls))
 
-        sorted_result = np.sort(result, axis=0)
-        # Drop the `keep` lowest rolls and sum the rest
-        if self.of > self.drop:
-            dropped_keeps = sorted_result[self.drop :, :]
-        else:
-            dropped_keeps = np.zeros((0, items), dtype=np.int_)  # If dropping all, result is zeros
-        return np.sum(dropped_keeps, axis=0)
+        results = np.empty(items, dtype=np.int_)
+
+        start_idx = 0
+        for i in range(items):
+            num_rolls = of_rolls[i]  # type: ignore
+            drop = min(num_rolls, drop_rolls[i])  # type: ignore
+
+            sorted_rolls = np.sort(dice_rolls[start_idx : start_idx + num_rolls])  # type: ignore
+            results[i] = np.sum(sorted_rolls[drop:] if drop > 0 else sorted_rolls)  # type: ignore
+
+            start_idx += num_rolls  # type: ignore
+
+        return results
