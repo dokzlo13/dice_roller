@@ -1,10 +1,6 @@
 
 # Dice Roller
 
-[![dyce-powered](https://raw.githubusercontent.com/posita/dyce/latest/docs/dyce-powered.svg)][dyce-powered]
-
-[dyce-powered]: https://posita.github.io/dyce/ "dyce-powered!"
-
 ## Highlights
 
 ```python
