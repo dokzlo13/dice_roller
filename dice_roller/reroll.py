@@ -120,3 +120,24 @@ class Reroll:
 
     def __le__(self, value: BaseDice | int) -> RerollDice:
         return partial(RerollIfLessOrEq, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
+
+
+class _RerollFactory:
+    def __init__(self, dice: BaseDice, reroll_limit: int = 1) -> None:
+        self.dice = dice
+        self.reroll_limit = reroll_limit
+
+    def __eq__(self, value: BaseDice | int) -> BaseReroll:  # type: ignore
+        return RerollEq(dice=self.dice, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)  # type: ignore
+
+    def __gt__(self, value: BaseDice | int) -> RerollDice:
+        return RerollIfGreater(dice=self.dice, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)  # type: ignore
+
+    def __ge__(self, value: BaseDice | int) -> RerollDice:
+        return RerollIfGreaterOrEq(dice=self.dice, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)  # type: ignore
+
+    def __lt__(self, value: BaseDice | int) -> RerollDice:
+        return RerollIfLess(dice=self.dice, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)  # type: ignore
+
+    def __le__(self, value: BaseDice | int) -> RerollDice:
+        return RerollIfLessOrEq(dice=self.dice, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)  # type: ignore

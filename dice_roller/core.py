@@ -22,6 +22,24 @@ class BaseDice(Protocol):
     def __str__(self) -> str:
         return super().__str__()
 
+    @property
+    def r(self):
+        return self.reroll()
+
+    def reroll(self, reroll_limit: int = 1):
+        from .reroll import _RerollFactory
+
+        return _RerollFactory(dice=self, reroll_limit=reroll_limit)
+
+    @property
+    def x(self):
+        return self.explode()
+
+    def explode(self, explode_depth: int = 100):
+        from .explode import _ExplodeFactory
+
+        return _ExplodeFactory(dice=self, explode_depth=explode_depth)
+
     def average(self, samples: int | None = None) -> float:
         if samples is None:
             samples = self.STATISTIC_SIMULATION_SAMPLES

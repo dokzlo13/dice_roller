@@ -119,3 +119,24 @@ class Explode:
 
     def __le__(self, value: BaseDice | int) -> ExplodeDice:
         return partial(ExplodeIfLessOrEq, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
+
+
+class _ExplodeFactory:
+    def __init__(self, dice: BaseDice, explode_depth: int = 1) -> None:
+        self.dice = dice
+        self.explode_depth = explode_depth
+
+    def __eq__(self, value: BaseDice | int) -> ExplodeDice:  # type: ignore
+        return ExplodeEq(self.dice, compare=_wrap_scalar(value), explode_depth=self.explode_depth)  # type: ignore
+
+    def __gt__(self, value: BaseDice | int) -> ExplodeDice:
+        return ExplodeIfGreater(self.dice, compare=_wrap_scalar(value), explode_depth=self.explode_depth)  # type: ignore
+
+    def __ge__(self, value: BaseDice | int) -> ExplodeDice:
+        return ExplodeIfGreaterOrEq(self.dice, compare=_wrap_scalar(value), explode_depth=self.explode_depth)  # type: ignore
+
+    def __lt__(self, value: BaseDice | int) -> ExplodeDice:
+        return ExplodeIfLess(self.dice, compare=_wrap_scalar(value), explode_depth=self.explode_depth)  # type: ignore
+
+    def __le__(self, value: BaseDice | int) -> ExplodeDice:
+        return ExplodeIfLessOrEq(self.dice, compare=_wrap_scalar(value), explode_depth=self.explode_depth)  # type: ignore

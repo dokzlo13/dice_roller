@@ -1,6 +1,10 @@
 
 # Dice Roller
 
+[![dyce-powered](https://raw.githubusercontent.com/posita/dyce/latest/docs/dyce-powered.svg)][dyce-powered]
+
+[dyce-powered]: https://posita.github.io/dyce/ "dyce-powered!"
+
 ## Highlights
 
 ```python
@@ -18,6 +22,23 @@ modifier = s(5)  # Scalar, `dice_roller` converts integers to Scalar automatical
 roll_info(modifier)  # For dice '5' min is 5 and max is 5
 roll_info(d20 + modifier)  # For dice '(d20 + 5)' min is 6 and max is 25
 
+fudge_dice = rng(-1, 2)                 # fudge dice
+4@fudge_dice                            # roll 4 fudge dices, add results together
+(d20 - 4) >= 1                          # roll d20-4, ensure result greater or equal to 1
+d20 * 2 + d(2) - 1                      # roll d20, multiply by 2, add d2, sub 1
+dh(10@d20, drop=5)                      # roll 10 d20, drop 5 highest and return sum of rest 
+kh(5@d20, keep=d(2))                    # roll 5 d20, keep d2 (new reroll value each time) highest and return their sum 
+d(6).r == rng(1, 3)                     # roll d6, rerolls on 1 or 2 (new reroll value each time), 1 reroll max (default)
+d(20).reroll(reroll_limit=10) == 1      # roll d20, rerolls on 1, max 10 rerolls
+d(6).x >= 5                             # roll d6, explodes on 5 and 6. Maximum 100 explodes (default)
+d(6).explode(explode_depth=2) > 4       # roll d6, explodes on 5 and 6. Maximum 2 explodes
+10@d(10) * 10@d(10)                     # roll 2 sets of 10d10 and multiply results
+(4 @ d(4)) @ d(10)                      # roll 4d4 of d10 dices
+
+# roll d6 of (roll d4 of d20 dice, keep 1 highest) and drop d4 lowest. Ensure (d4 explodes on 4) <= result <= (d100 reroll <= 50).
+(dl(d(6) @ kl(d(4) @ d(20)), drop=d(4)) >= (d(4).x == 4)) <= (d(100).r <= 50)
+
+# Some code
 attack_roll = kh(2@d20) + d(4) + 3  # Roll to hit with advantage, use bless (+d4) and add +3 modifier
 roll_info(attack_roll)  # For dice '(2d20kh + d4 + 3)' min is 5 and max is 27
 attack_results = attack_roll.generate(10_000)  # Generates 10000 rolls
@@ -26,24 +47,12 @@ hit_ac = attack_results[attack_results >= 16]  # numpy stuff
 damage_roll = 2@(x() == 6)(d(6)) + 5  # Roll 2d6 (explode on 6), add 5
 roll_info(damage_roll)  # For dice '(2d6x6 + 5)' min is 7 and max is 17
 
-skill_check_roll = (r(reroll_limit=1) == 1)(d20) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4
+reroll_ones = (r(reroll_limit=1) == 1)  # Create reroll ones modifier (max 1 reroll)
+skill_check_roll = reroll_ones(d20) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4
+skill_check_roll = (d20.r == 1) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4 - another approach
 roll_info(skill_check_roll)  # For dice '(d20r1 + 4)' min is 5 and max is 24
 kl(2@skill_check_roll).roll()  # roll skill check roll with disadvantage
 
-fudge_dice = rng(-1, 2)                 # fudge dice
-4@fudge_dice                            # roll 4 fudge dices, add results together
-(d20 - 4) >= 1                          # roll d20-4, ensure result greater or equal to 1
-d20 * 2                                 # roll d20, multiply by 2
-d20 * d(6)                              # roll d20 and d6, multiply results
-dh(10@d20, drop=5)                      # roll 10 d20, drop 5 highest and return sum of rest 
-kh(5@d20, keep=2)                       # roll 5 d20, keep 2 highest and return their sum 
-(r() == rng(1, 3))(d(6))                # roll d6, rerolls on 1 or 2 (new reroll value each roll)
-(x(explode_depth=10) > 4)(d(6))         # roll d6, explodes on 5 and 6. Maximum 10 explodes
-10@d(10) * 10@d(10)                     # roll 2 sets of 10d10 and multiply results
-4@d(4) @ d(10)                          # roll 4d4 of d10 dices
-
-# roll d6 of (roll d4 of d20 dice, keep 1 highest) and drop d4 lowest. Ensure (d4 explodes on 4) <= result <= (d100 reroll <= 50).
-((dl(d(6) @ kl(d(4) @ d(20)), drop=d(4)) >= (x() == 4)(d(4))) <= ((r() <= 50)(d(100))))
 
 def statistical_report(dice: BaseDice):
     print(f"Statistics for '{dice}'")
@@ -327,6 +336,8 @@ For dice '(d20 - 4)min1' min is 1 and max is 16
 
 First thing we can make after rolling dice - roll more dices!
 
+Python’s matrix multiplication operator (@) is used to express the number of a particular die (roughly equivalent to the "d" operator in common notations).
+
 Your D&D wizard throws fireball, and you want to roll 8d6 fire damage? Easy:
 
 ```python
@@ -490,18 +501,39 @@ Rerolls the die based on the set condition, keeping the outcome regardless of wh
 This modifier requires specifying extra condition. Here is example:
 
 ```python
+from dice_roller import Dice
+
+d20_reroll_ones = Dice(20).r == 1  # Reroll ones on d20
+```
+
+Reroll also supports functional api. You can create and store reroll modifier in following way:
+
+```python
 from dice_roller import Reroll, Dice
 
 reroll_ones = (Reroll() == 1)
 d20_reroll_ones = reroll_ones(Dice(20))
 ```
 
-By default, roll can be rerolled once, but you can override this behavior during constructing `Reroll` instance:
+Also, take into account - result of `Reroll()` or `r()` is not dice itself, it is modifier wrapper. You need to apply this modifier to dice to perform rolls.
 
 ```python
-from dice_roller import r  # r is alias for Reroll
+
+from dice_roller import r, d
+
+(r() == 1).roll()  # is not okay
+(r() == 6)(some_dice).roll()  # is okay
+```
+
+By default, roll can be rerolled once, but you can override this behavior:
+
+```python
+from dice_roller import r, d  # r is alias for Reroll
 
 # dice may be rerolled 100 times, if has sequential ones on d20 roll
+d = (d(20).reroll(reroll_limit=100) == 1)
+
+# For functional API
 reroll_ones = (r(reroll_limit=100) == 1)
 d20_reroll_ones_100_times_max = explode_on_6(Dice(6))
 ```
@@ -509,7 +541,14 @@ d20_reroll_ones_100_times_max = explode_on_6(Dice(6))
 `Reroll` supports several comparison operations:
 
 ```python
-from dice_roller import r
+from dice_roller import r, d
+
+d20 = d(20)
+d20.r == 10
+d20.r > 10
+d20.r >= 10
+d20.r < 10
+d20.r <= 10
 
 reroll_on_6 = (r() == 6)
 reroll_on_gt_5 = (r() > 5)
@@ -522,6 +561,8 @@ You can also provide dices for `Reroll`, let's call it "Reroll Dice". In this ca
 
 ```python
 from dice_roller import r, RangeDice, Dice
+
+d3_with_magic = (Dice(3).r == RangeDice(1, 3))  # rerolls on 1 or 2
 
 reroll_1_or_2 = (x() == RangeDice(1, 3)))  # rerolls on 1 or 2
 d3_with_magic = reroll_1_or_2(Dice(3))
@@ -538,27 +579,34 @@ Logic example:
 - Rolls "Reroll Dice", get 1
 - ReRolls dice, get 3 - no need to reroll, return
 
-Also, take into account - result of `Reroll` call is not dice itself, it is modifier wrapper. You need to apply this modifier to dice to perform rolls.
-
-```python
-
-from dice_roller import r, d
-
-(r() == 1).roll()  # is not okay
-(r() == 6)(d(6)).roll()  # is okay
-```
-
 #### Explode
 
-Rerolls a die continually based on the set condition, so that each occurrence of the number rolls again, continually adding to the total result.
+Explode rerolls a die continually based on the set condition, so that each occurrence of the number rolls again, continually adding to the total result.
 
 This modifier requires specifying extra condition. Here is example:
+
+```python
+from dice_roller import Dice
+
+d6_explode_on_6 = Dice(6).x == 6  # Explode on 6 on d6 dice
+```
+
+Reroll also supports functional api. You can create and store reroll modifier in following way:
 
 ```python
 from dice_roller import Explode, Dice
 
 explode_on_6 = (Explode() == 6)
 d6_explode_on_6 = explode_on_6(Dice(6))
+```
+
+Also, take into account - result of `Explode()` or `x()` is not dice itself, it is modifier wrapper. You need to apply this modifier to dice to perform rolls.
+
+```python
+from dice_roller import x, d
+
+(x() == 6).roll()  # is not okay
+(x() == 6)(some_dice).roll()  # is okay
 ```
 
 By default, roll can be exploded 100 times, but you can override this behavior during constructing `Explode` instance:
@@ -568,6 +616,9 @@ from dice_roller import x, Dice  # x is alias for Explode
 
 # dice may be exploded only 5 times sequentially on d6 roll
 # If you lucky enough, you will obtain result of `np.sum([6,6,6,6,6])`
+d = (d(20).explode(explode_depth=5) == 1)
+
+# For functional API
 explode_on_6 = (x(explode_depth=5) == 6)
 d6_explode_on_6_5_times = explode_on_6(Dice(6))
 ```
@@ -575,19 +626,28 @@ d6_explode_on_6_5_times = explode_on_6(Dice(6))
 `Explode` supports several comparison operations:
 
 ```python
-from dice_roller import x  # x is alias for Explode
+from dice_roller import d, x
+
+d6 = d(6)
+d6.x == 6
+d6.x > 5
+d6.x >= 5
+d6.x < 2
+d6.x <= 2
 
 explode_on_6 = (x() == 6)
 explode_on_gt_5 = (x() > 5)
 explode_on_ge_5 = (x() >= 5)
-explode_on_lt_5 = (x() < 5)
-explode_on_le_5 = (x() <= 5)
+explode_on_lt_5 = (x() < 2)
+explode_on_le_5 = (x() <= 2)
 ```
 
 You can also provide dices for `Reroll`, let's call it "Explode Dice". In this case, "Explode Dice" will be rolled first, and then, if dice outcomes into required dice, it will be exploded. "Explode Dice" rolled after each exploding step.
 
 ```python
 from dice_roller import x, RangeDice, Dice
+
+d6_explode_on_5_or_6 = (Dice(3).x == RangeDice(5, 7))  # explodes on 5 or 6
 
 explode_on_5_or_6 = (x() == RangeDice(5, 7)))  # explodes on 5 or 6
 d6_explode_on_5_or_6 = explode_on_5_or_6(Dice(6))
@@ -603,13 +663,3 @@ Logic example:
 - Need to explode, adding roll to overall result and proceed to next loop
 - Rolls "Explode Dice", get 6
 - Rolls dice, get 3 - adding to overall result, but here is no need to explode further, return
-
-Also, take into account - result of `Explode` call is not dice itself, it is modifier wrapper. You need to apply this modifier to dice to perform rolls.
-
-```python
-
-from dice_roller import x, d
-
-(x() == 6).roll()  # is not okay
-(x() == 6)(d(6)).roll()  # is okay
-```
