@@ -1,6 +1,6 @@
 from . import random
 from .callback import WithGenerateCallback, WithRollCallback
-from .compare import Max, Min
+from .compare import Ge, Gt, Le, Lt
 from .core import (
     BaseDice,
     Dice,

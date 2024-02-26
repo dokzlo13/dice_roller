@@ -186,9 +186,20 @@ class BaseDice(Protocol):
         if not isinstance(other, BaseDice):
             raise TypeError("Can only div other dices or integers")
 
-        from .compare import Min
+        from .compare import Ge
 
-        return Min(dice=self, compare=other)  # type: ignore
+        return Ge(dice=self, compare=other)  # type: ignore
+
+    def __gt__(self, other):
+        if isinstance(other, int):
+            other = Scalar(other)
+
+        if not isinstance(other, BaseDice):
+            raise TypeError("Can only div other dices or integers")
+
+        from .compare import Gt
+
+        return Gt(dice=self, compare=other)  # type: ignore
 
     def __le__(self, other):
         if isinstance(other, int):
@@ -197,9 +208,20 @@ class BaseDice(Protocol):
         if not isinstance(other, BaseDice):
             raise TypeError("Can only div other dices or integers")
 
-        from .compare import Max
+        from .compare import Le
 
-        return Max(dice=self, compare=other)  # type: ignore
+        return Le(dice=self, compare=other)  # type: ignore
+
+    def __lt__(self, other):
+        if isinstance(other, int):
+            other = Scalar(other)
+
+        if not isinstance(other, BaseDice):
+            raise TypeError("Can only div other dices or integers")
+
+        from .compare import Lt
+
+        return Lt(dice=self, compare=other)  # type: ignore
 
 
 @dataclass

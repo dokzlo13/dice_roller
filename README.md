@@ -107,7 +107,7 @@ print(rolls, type(rolls))
   5 12  5 12] <class 'numpy.ndarray'>
 ```
 
-But for now let's keep things simple and focus on the features. One important thing you need to remember now - almost all things from `dice_roller` supports batch generation with `generate(total)` method.
+But for now let's keep things simple and focus on the other features. One important thing you need to remember now - almost all things from `dice_roller` supports batch generation with `generate(total)` method.
 
 For future understanding, lets also use some important `dice_roller` apis. Here we can check possible extremes of the dice roll outcome:
 
@@ -119,6 +119,8 @@ d20 = Dice(20)
 print(f"For dice '{d20}' min is {d20.min()} and max is {d20.max()}")
 # For dice 'd20' min is 1 and max is 20
 ```
+
+`dice_roller` has some optimizations, which helps to calculate extreme values without expensive computations.
 
 So far looks too boring, let's add some modifiers to this roll.
 
@@ -164,6 +166,8 @@ For dice '(d20 * 4)' min is 4 and max is 80
 For dice '(d20 / 4)' min is 0 and max is 5
 ```
 
+**Important note**: in current state, all division operation is true division. Dices `d20 / 2` and `d20 // 2` will calculate result in same way, using rules of true division.
+
 But this is not all, we can simply replace constant modifier with another dice:
 
 ```python
@@ -189,7 +193,7 @@ For dice '(d20 / d4)' min is 0 and max is 20
 
 ### Some Statistics
 
-As you can see in last example, possible minimal and maximal values are not changed. Let's find other differences:
+As you can see in last example, possible minimal and maximal values are not changed. Let's find other differences and check more features of `dice_roller`:
 
 ```python
 from dice_roller import Dice, BaseDice
@@ -234,7 +238,7 @@ And let's ask ChatGPT to explain this difference:
 
 If you interested, how `dice_roller` calculates this statistical data - answer is simple. `dice_roller` just generates large amount of the rolls (*one million by default*) and then calculates required metric.
 
-Sorry, I'm just an average engineer, not a mathematician. If someone is capable to calculate those values without simulations - please contribute.
+This behavior is subject of change, in future `dice_roller` may provide better optimizations for measuring statistics.
 
 Also, if you need to alter amount of simulations, you can do it in 2 ways:
 
@@ -316,21 +320,33 @@ d20 = Dice(20)
 
 safe_roll = (d20 - 4) >= 1 # roll of the (d20 - 4) must be greater or equal to 1
 roll_info(safe_roll)
-
-from dice_roller import Min, Scalar
-safe_roll = Min(d20 - 4, Scalar(1))
-roll_info(safe_roll)
 ```
 
 ```
-For dice '(d20 - 4)min1' min is 1 and max is 16
-For dice '(d20 - 4)min1' min is 1 and max is 16
+For dice '(d20 - 4)>=1' min is 1 and max is 16
 ```
 
+`dice_roller` support different types of limits:
+
+```python
+from dice_roller import d
+d20 = d(20)
+
+d20 >= 19    # greater or equal to 19
+d20 > 19     # greater then 19
+d20 <= 2     # less or equal to 2
+d20 < 2      # less then 2
+
+# You can also use dices to construct limit, compared dice will be rolled first. New value will be rolled each time.
+d20 >= d(4)  # d20 greater or equal to value of d4
+d20 <= d(4)  # d20 less or equal to value of d4
+```
+
+As you see, here is no `==` operator supported. This has no sense - in case of `==`, any roll can be reduced to simple `Scalar`.
 
 #### Multiple Dices
 
-First thing we can make after rolling dice - roll more dices!
+First thing we can make after rolling some dices - roll even more dices!
 
 Python’s matrix multiplication operator (@) is used to express the number of a particular die (roughly equivalent to the "d" operator in common notations).
 
@@ -357,14 +373,7 @@ Average: 28
 Rolled 27
 ```
 
-Equivalent to create same dice with objects is:
-
-```python
-from dice_roller import Dice, DiceMany, Scalar
-dice_8d6 = DiceMany(total=Scalar(8), dice=Dice(6))
-```
-
-You can also create `dice` roll of `dice`:
+You can also create `<dice>` roll of `<dice>`:
 
 ```python
 from dice_roller import Dice
@@ -385,6 +394,8 @@ from dice_roller import Dice, KeepHighest
 
 d20advantage = KeepHighest(2@Dice(20))  # by default, selects 1 highest dice of 2 dice rolled.
 ```
+
+Using `KeepHighest` will have sense only when you use it with multiple dices, created with `@` operator. If you use it with one dice, outcome will be same as not using `KeepHighest` at all: `KeepHighest(Dice(20)) ~ Dice(20)`
 
 You can override amount of tries and amount of rolls, which will be added in final roll:
 
@@ -416,6 +427,8 @@ from dice_roller import Dice, KeepLowest
 d20disadvantage = KeepLowest(2@Dice(20))  # by default, selects 1 lowest dice of 2 dice rolled.
 ```
 
+Using `KeepLowest` will have sense only when you use it with multiple dices, created with `@` operator. If you use it with one dice, outcome will be same as not using `KeepLowest` at all: `KeepLowest(Dice(20)) ~ Dice(20)`
+
 You can override amount of tries and amount of rolls, which will be added in final roll:
 
 ```python
@@ -446,6 +459,10 @@ from dice_roller import Dice, DropHighest
 d20disadvantage = DropHighest(2@Dice(20))  # by default, drops 1 highest dice of 2 dice rolled.
 ```
 
+Using `DropHighest` will have sense only when you use it with multiple dices, created with `@` operator. If you use it with one dice, outcome rolls will always be 0, because modifier drops single roll from 1: `DropHighest(Dice(20)) ~ 0`
+
+You can override amount of tries and amount of rolls, which will dropped from final roll:
+
 ```python
 from dice_roller import Dice, dh  # dh is alias for DropHighest
 
@@ -473,6 +490,10 @@ from dice_roller import Dice, DropLowest
 
 d20advantage = DropLowest(2@Dice(20))  # by default, drops 1 lowest dice of 2 dice rolled.
 ```
+
+Using `DropLowest` will have sense only when you use it with multiple dices, created with `@` operator. If you use it with one dice, outcome rolls will always be 0, because modifier drops single roll from 1: `DropLowest(Dice(20)) ~ 0`
+
+You can override amount of tries and amount of rolls, which will dropped from final roll:
 
 ```python
 from dice_roller import Dice, dl  # dl is alias for DropLowest
@@ -514,7 +535,6 @@ d20_reroll_ones = reroll_ones(Dice(20))
 Also, take into account - result of `Reroll()` or `r()` is not dice itself, it is modifier wrapper. You need to apply this modifier to dice to perform rolls.
 
 ```python
-
 from dice_roller import r, d
 
 (r() == 1).roll()  # is not okay
