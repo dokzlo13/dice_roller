@@ -1,6 +1,10 @@
 
 # Dice Roller
 
+[![dyce-powered](https://raw.githubusercontent.com/posita/dyce/latest/docs/dyce-powered.svg)][dyce-powered]
+
+[dyce-powered]: https://posita.github.io/dyce/ "dyce-powered!"
+
 ## Highlights
 
 ```python
@@ -48,22 +52,6 @@ skill_check_roll = reroll_ones(d20) + 4  # Roll d20 and reroll ones (max 1 rerol
 skill_check_roll = (d20.r == 1) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4 - another approach
 roll_info(skill_check_roll)  # For dice '(d20r1 + 4)' min is 5 and max is 24
 kl(2@skill_check_roll).roll()  # roll skill check roll with disadvantage
-
-
-def statistical_report(dice: BaseDice):
-    print(f"Statistics for '{dice}'")
-    print(f"Std. Dev is {dice.std():.3f}")
-    print(f"Median is {dice.median():.3f}")
-    print(f"Avg is {dice.average():.3f}")
-    print(f"Mean is {dice.mean():.3f}")
-
-# Statistics for '(d20 + d4)'
-# Std. Dev is 5.872
-# Median is 13.000
-# Avg is 12.996
-# Mean is 13.005
-statistical_report(d20 + d(4))
-
 ```
 
 ## Tutorial
@@ -196,66 +184,144 @@ For dice '(d20 / d4)' min is 0 and max is 20
 As you can see in last example, possible minimal and maximal values are not changed. Let's find other differences and check more features of `dice_roller`:
 
 ```python
+import numpy as np
 from dice_roller import Dice, BaseDice
 
 def statistical_report(dice: BaseDice):
+    rolls = dice.generate(1_000_000)
     print(f"Statistics for '{dice}'")
-    print(f"Std. Dev is {dice.std():.3f}")
-    print(f"Median is {dice.median():.3f}")
-    print(f"Avg is {dice.average():.3f}")
-    print(f"Mean is {dice.mean():.3f}")
-    print("-"*40)
-
+    print(f"Mean: {np.mean(rolls)}")
+    print(f"Std : {np.std(rolls)}")
+    print(f"Var : {np.var(rolls)}")
 
 statistical_report(Dice(20) + 4)
+print("-" * 40)
 statistical_report(Dice(20) + Dice(4))
 ```
 
 ```
 Statistics for '(d20 + 4)'
-Std. Dev is 5.769
-Median is 15.000
-Avg is 14.498
-Mean is 14.505
+Mean: 14.500655
+Std : 5.766562196922445
+Var : 33.25323957097502
 ----------------------------------------
 Statistics for '(d20 + d4)'
-Std. Dev is 5.866
-Median is 13.000
-Avg is 13.004
-Mean is 13.002
-----------------------------------------
+Mean: 13.006027
+Std : 5.878449002523625
+Var : 34.556162675271
 ```
 
 And let's ask ChatGPT to explain this difference:
 
-- **Standard Deviation**: Slightly higher in the d20 + d4 roll (5.866) than the d20 + 4 (5.769), indicating more variability when adding a dice roll versus a constant.
+- **Mean**: The average roll result is higher for `(d20 + 4)` compared to `(d20 + d4)`, reflecting that adding a constant leads to a higher average outcome than adding another dice roll due to less variability.
 
-- **Median**: The median is higher for d20 + 4 (15.000) compared to d20 + d4 (13.000), reflecting the shift in the distribution's center due to the constant addition.
+- **Standard Deviation (Std)**: Indicates less variability in outcomes for `(d20 + 4)` than for `(d20 + d4)`. This means that adding a constant results in outcomes that are closer to the average, whereas adding another dice introduces more spread in the results.
 
-- **Average (Avg)** and **Mean**: Both are higher for d20 + 4 (14.498 and 14.505, respectively) than for d20 + d4 (13.004 and 13.002), showing that adding a constant value results in a higher overall result than the variable addition of another dice roll.
+- **Variance (Var)**: Confirms the trend seen in the standard deviation, with `(d20 + 4)` showing slightly less variance than `(d20 + d4)`, meaning the outcomes for the former are more tightly clustered around the mean.
 
-**Overall Explanation**: Adding a constant value (4) to a d20 roll results in uniformly higher outcomes and slightly less variability than adding the roll of a d4, due to the fixed increase versus the variable increase provided by another dice roll.
+**Overall**: Adding a constant to a d20 roll produces slightly higher and more consistent outcomes compared to adding the roll of a d4, which introduces more randomness and variability into the results.
 
-If you interested, how `dice_roller` calculates this statistical data - answer is simple. `dice_roller` just generates large amount of the rolls (*one million by default*) and then calculates required metric.
+Generating large amount of the rolls and then calculating required metric if simple approach, but it will require extra memory and cpu usage just to generate samples for statistics calculation.
 
-This behavior is subject of change, in future `dice_roller` may provide better optimizations for measuring statistics.
-
-Also, if you need to alter amount of simulations, you can do it in 2 ways:
+`dice_roller` also suggest another way to calculate statistics.
+Using [dyce](https://posita.github.io/dyce/) library for modeling arbitrarily complex dice mechanics, `dice_roller` brings to you perfectly designed API and ability to perform probability modeling in one package!
 
 ```python
-from dice_roller import Dice
-dice = Dice(20)
+from dice_roller import d
 
-dice.STATISTIC_SIMULATION_SAMPLES = 10_000_000  # changes samples count for all statistic methods
-
-avg = dice.average(samples=100_000_000)  # alters only this calculation
+dice = d(8) + d(12)
+h = dice.histogram()
+print(h.format(scaled=True))
 ```
+
+```
+avg |   11.00
+std |    4.14
+var |   17.17
+  2 |   1.04% |######
+  3 |   2.08% |############
+  4 |   3.12% |##################
+  5 |   4.17% |########################
+  6 |   5.21% |###############################
+  7 |   6.25% |#####################################
+  8 |   7.29% |###########################################
+  9 |   8.33% |#################################################
+ 10 |   8.33% |#################################################
+ 11 |   8.33% |#################################################
+ 12 |   8.33% |#################################################
+ 13 |   8.33% |#################################################
+ 14 |   7.29% |###########################################
+ 15 |   6.25% |#####################################
+ 16 |   5.21% |###############################
+ 17 |   4.17% |########################
+ 18 |   3.12% |##################
+ 19 |   2.08% |############
+ 20 |   1.04% |######
+```
+
+`histogram()` method of the `BaseDice` returns [dyce.H](https://posita.github.io/dyce/0.6/dyce/#dyce.h.H) object. Returned histogram will contain finite discrete outcomes, with all modifiers applied to it.
+
+Unfortunately, because `dice_roller` requires each transformation to return only one deterministic integer for each `roll()`, it not supports [dyce.P](https://posita.github.io/dyce/0.6/dyce/#dyce.p.P) (Dice pools) on cases like 2d6 dices rolled.
+
+Let's compare two approaches:
+
+```python
+from dice_roller import BaseDice, d, kh
+
+# Roll to hit with advantage, use bless (+d4) and add +3 modifier
+r = kh(2 @ d(20)) + d(4) + 5
+
+def stats_simulation(r: BaseDice):
+    rolls = r.generate(1_000_000)
+    print(f"Mean: {np.mean(rolls)}")
+    print(f"Std : {np.std(rolls)}")
+    print(f"Var : {np.var(rolls)}")
+
+
+def stats_histogram(r: BaseDice):
+    h = r.histogram()
+    mu = h.mean()
+    print(f"Mean: {mu}")
+    print(f"Std : {h.stdev(mu)}")
+    print(f"Var : {h.variance(mu)}")
+
+stats_simulation(r)
+print("-" * 40)
+stats_histogram(r)
+```
+
+```
+Mean: 21.330275
+Std : 4.84100025040022
+Var : 23.43528342437499
+----------------------------------------
+Mean: 21.325
+Std : 4.841939177643606
+Var : 23.444375000000036
+```
+
+In comparing two methods of statistical analysis for those rolls, both simulation and histogram approaches yield remarkably similar results.
+Let's compare execution time:
+
+```python
+r = kh(2 @ d(20)) + d(4) + 5
+
+%timeit r.generate(1_000_000)
+%timeit r.histogram()
+```
+
+```
+2.27 s ± 18.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+1.01 ms ± 6.98 µs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
+```
+
+Running the simulation takes a good couple of seconds, while the histogram method is lightning fast. So, if you're looking for quick and reliable dice roll insights, the histogram way is a no-brainer.
 
 ### Dice Types
 
 #### Scalar
 
-Second important dice type after regular `Dice` is `Scalar`. This type of dice simply returns constant value.
+Let's return back to dices. Second important dice type after regular `Dice` is `Scalar`. This type of dice simply returns constant value.
 Many overload operations logic converts integers to the `Scalar` automatically, before applying modifications to original dice.
 But if you use objects, like `Max` from `dice_roller` in your code, prefer to convert your constants into this type.
 

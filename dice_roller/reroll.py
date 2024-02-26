@@ -3,6 +3,8 @@ from functools import partial
 from typing import Callable, Protocol
 
 import numpy as np
+from dyce import H
+from dyce.evaluation import expandable, HResult
 from numpy.typing import ArrayLike
 
 from .core import BaseDice, Scalar
@@ -16,13 +18,24 @@ class BaseReroll(BaseDice, Protocol):
     compare: BaseDice
     reroll_limit: int = field(default=1)
 
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool: ...
+
+    @staticmethod
+    def _calculate_reroll_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike: ...
+
     def max(self) -> int:
         return self.dice.max()
 
     def min(self) -> int:
         return self.dice.min()
 
-    def _calculate_reroll_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike: ...
+    def histogram(self) -> H:
+        @expandable
+        def reroll(compare: HResult, dice: HResult):
+            return dice.h if self._compare_histogram_outcome(dice.outcome, compare.outcome) else dice.outcome  # type: ignore
+
+        return reroll(self.compare.histogram(), self.dice.histogram())
 
     def generate(self, items: int) -> ArrayLike:
         result = self.dice.generate(items)
@@ -46,51 +59,71 @@ class BaseReroll(BaseDice, Protocol):
 
 @dataclass
 class RerollEq(BaseReroll):
-
     def __str__(self) -> str:
         return f"{self.dice}r{self.compare}"
 
-    def _calculate_reroll_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool:
+        return dice == compare
+
+    @staticmethod
+    def _calculate_reroll_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
         return roll_values == cmp_values
 
 
 @dataclass
 class RerollIfGreater(BaseReroll):
-
     def __str__(self) -> str:
         return f"{self.dice}r>{self.compare}"
 
-    def _calculate_reroll_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool:
+        return dice > compare
+
+    @staticmethod
+    def _calculate_reroll_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
         return roll_values > cmp_values  # type: ignore
 
 
 @dataclass
 class RerollIfGreaterOrEq(BaseReroll):
-
     def __str__(self) -> str:
         return f"{self.dice}r>={self.compare}"
 
-    def _calculate_reroll_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool:
+        return dice >= compare
+
+    @staticmethod
+    def _calculate_reroll_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
         return roll_values >= cmp_values  # type: ignore
 
 
 @dataclass
 class RerollIfLess(BaseReroll):
-
     def __str__(self) -> str:
         return f"{self.dice}r<{self.compare}"
 
-    def _calculate_reroll_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool:
+        return dice < compare
+
+    @staticmethod
+    def _calculate_reroll_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
         return roll_values < cmp_values  # type: ignore
 
 
 @dataclass
 class RerollIfLessOrEq(BaseReroll):
-
     def __str__(self) -> str:
         return f"{self.dice}r<={self.compare}"
 
-    def _calculate_reroll_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool:
+        return dice <= compare
+
+    @staticmethod
+    def _calculate_reroll_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
         return roll_values <= cmp_values  # type: ignore
 
 

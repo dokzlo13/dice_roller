@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 import numpy as np
+from dyce import H
+from dyce.evaluation import expandable
 from numpy.typing import ArrayLike
 
 from .random import Rng
@@ -11,8 +13,6 @@ from .random import Rng
 
 @runtime_checkable
 class BaseDice(Protocol):
-    STATISTIC_SIMULATION_SAMPLES: int = 1_000_000
-
     def generate(self, items: int) -> ArrayLike: ...
 
     def max(self) -> int: ...
@@ -21,6 +21,8 @@ class BaseDice(Protocol):
 
     def __str__(self) -> str:
         return super().__str__()
+
+    def histogram(self) -> H: ...
 
     @property
     def r(self):
@@ -39,26 +41,6 @@ class BaseDice(Protocol):
         from .explode import _ExplodeFactory
 
         return _ExplodeFactory(dice=self, explode_depth=explode_depth)
-
-    def average(self, samples: int | None = None) -> float:
-        if samples is None:
-            samples = self.STATISTIC_SIMULATION_SAMPLES
-        return np.average(self.generate(samples))  # type: ignore
-
-    def median(self, samples: int | None = None) -> float:
-        if samples is None:
-            samples = self.STATISTIC_SIMULATION_SAMPLES
-        return np.median(self.generate(samples))  # type: ignore
-
-    def mean(self, samples: int | None = None) -> float:
-        if samples is None:
-            samples = self.STATISTIC_SIMULATION_SAMPLES
-        return np.mean(self.generate(samples))  # type: ignore
-
-    def std(self, samples: int | None = None) -> float:
-        if samples is None:
-            samples = self.STATISTIC_SIMULATION_SAMPLES
-        return np.std(self.generate(samples))  # type: ignore
 
     def roll(self) -> int:
         return np.sum(self.generate(1))
@@ -228,6 +210,9 @@ class BaseDice(Protocol):
 class Scalar(BaseDice):
     value: int
 
+    def histogram(self) -> H:
+        return H([self.value])  # type: ignore
+
     def __str__(self) -> str:
         return str(self.value)
 
@@ -245,6 +230,9 @@ class Scalar(BaseDice):
 class Dice(BaseDice):
     sides: int
     minimal: int = field(default=1)
+
+    def histogram(self) -> H:
+        return H(range(self.minimal, self.sides + 1))  # type: ignore
 
     def __str__(self) -> str:
         if self.minimal == 1:
@@ -266,6 +254,9 @@ class RangeDice(BaseDice):
     min_value: int
     max_value: int
 
+    def histogram(self) -> H:
+        return H(range(self.min_value, self.max_value))  # type: ignore
+
     def __str__(self) -> str:
         return f"d[{self.min_value} to {self.max_value}]"
 
@@ -282,6 +273,9 @@ class RangeDice(BaseDice):
 @dataclass
 class DiceAdd(BaseDice):
     items: list[BaseDice]
+
+    def histogram(self) -> H:
+        return sum(i.histogram() for i in self.items)  # type: ignore
 
     def __str__(self) -> str:
         return "(" + " + ".join(str(i) for i in self.items) + ")"
@@ -306,6 +300,10 @@ class DiceAdd(BaseDice):
 class DiceMany(BaseDice):
     total: BaseDice
     dice: BaseDice
+
+    def histogram(self) -> H:
+        many = expandable(lambda total, dice: total.outcome @ dice.h)
+        return many(self.total.histogram(), self.dice.histogram())
 
     def __str__(self) -> str:
         return f"{self.total}{self.dice}"
@@ -341,6 +339,12 @@ class DiceMany(BaseDice):
 class DiceSub(BaseDice):
     items: list[BaseDice]
     min_value: None | int = field(default=None)
+
+    def histogram(self) -> H:
+        result = self.items[0].histogram()
+        for i in self.items[1:]:
+            result -= i.histogram()  # type: ignore
+        return result  # type: ignore
 
     def __str__(self) -> str:
         return "(" + " - ".join(str(i) for i in self.items) + ")"
@@ -382,6 +386,12 @@ class DiceSub(BaseDice):
 class DiceMul(BaseDice):
     items: list[BaseDice]
 
+    def histogram(self) -> H:
+        result = self.items[0].histogram()
+        for i in self.items[1:]:
+            result *= i.histogram()  # type: ignore
+        return result  # type: ignore
+
     def __str__(self) -> str:
         return "(" + " * ".join(str(i) for i in self.items) + ")"
 
@@ -406,6 +416,12 @@ class DiceMul(BaseDice):
 @dataclass
 class DiceDiv(BaseDice):
     items: list[BaseDice]
+
+    def histogram(self) -> H:
+        result = self.items[0].histogram()
+        for i in self.items[1:]:
+            result /= i.histogram()  # type: ignore
+        return result  # type: ignore
 
     def __str__(self) -> str:
         return "(" + " / ".join(str(i) for i in self.items) + ")"

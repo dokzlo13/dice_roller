@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
+from dyce import H, P
+from dyce.evaluation import HResult, expandable
 from numpy.typing import ArrayLike
 
 from .core import BaseDice, DiceMany, Scalar
@@ -20,6 +22,13 @@ class KeepHighest(BaseDice):
             self.dice = self.dice.dice
         if isinstance(self.keep, int):
             self.keep = Scalar(self.keep)
+
+    def histogram(self) -> H:
+        @expandable
+        def kh(dice: HResult, keep: HResult, of: HResult):
+            return (of.outcome @ P(dice.h)).h(slice(-keep.outcome, None))  # type: ignore
+
+        return kh(self.dice.histogram(), self.keep.histogram(), self.of.histogram())
 
     def __str__(self) -> str:
         keep = str(self.keep)
@@ -66,9 +75,12 @@ class KeepLowest(BaseDice):
         if isinstance(self.keep, int):
             self.keep = Scalar(self.keep)
 
-        # Validate that `of` is greater than or equal to `keep`
-        if self.of.max() <= self.keep.max():
-            raise ValueError("`of` must be greater than or equal to `keep`")
+    def histogram(self) -> H:
+        @expandable
+        def kl(dice: HResult, keep: HResult, of: HResult):
+            return (of.outcome @ P(dice.h)).h(slice(None, keep.outcome))  # type: ignore
+
+        return kl(self.dice.histogram(), self.keep.histogram(), self.of.histogram())
 
     def __str__(self) -> str:
         keep = str(self.keep)
@@ -113,6 +125,13 @@ class DropHighest(BaseDice):
             self.dice = self.dice.dice
         if isinstance(self.drop, int):
             self.drop = Scalar(self.drop)
+
+    def histogram(self) -> H:
+        @expandable
+        def dh(dice: HResult, drop: HResult, of: HResult):
+            return (of.outcome @ P(dice.h)).h(slice(None, drop.outcome))  # type: ignore
+
+        return dh(self.dice.histogram(), self.drop.histogram(), self.of.histogram())
 
     def __str__(self) -> str:
         drop = str(self.drop)
@@ -161,6 +180,13 @@ class DropLowest(BaseDice):
             self.dice = self.dice.dice
         if isinstance(self.drop, int):
             self.drop = Scalar(self.drop)
+
+    def histogram(self) -> H:
+        @expandable
+        def dh(dice: HResult, drop: HResult, of: HResult):
+            return (of.outcome @ P(dice.h)).h(slice(-drop.outcome, None))  # type: ignore
+
+        return dh(self.dice.histogram(), self.drop.histogram(), self.of.histogram())
 
     def __str__(self) -> str:
         drop = str(self.drop)

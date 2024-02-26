@@ -3,6 +3,8 @@ from functools import partial
 from typing import Callable, Protocol
 
 import numpy as np
+from dyce import H
+from dyce.evaluation import expandable, HResult
 from numpy.typing import ArrayLike
 
 from .core import BaseDice, Scalar
@@ -16,13 +18,28 @@ class BaseExplode(BaseDice, Protocol):
     compare: BaseDice
     explode_depth: int = field(default=1)
 
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool: ...
+
+    @staticmethod
+    def _calculate_explode_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike: ...
+
+    def histogram(self) -> H:
+        @expandable
+        def explode(compare: HResult, dice: HResult):
+            return (
+                dice.h + dice.outcome
+                if self._compare_histogram_outcome(dice.outcome, compare.outcome)  # type: ignore
+                else dice.outcome
+            )
+
+        return explode(self.compare.histogram(), self.dice.histogram())
+
     def max(self) -> int:
         return self.dice.max() * self.explode_depth
 
     def min(self) -> int:
         return self.dice.min()
-
-    def _calculate_explode_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike: ...
 
     def generate(self, items: int) -> ArrayLike:
         results = np.zeros(items, dtype=np.int_)
@@ -45,11 +62,15 @@ class BaseExplode(BaseDice, Protocol):
 
 @dataclass
 class ExplodeEq(BaseExplode):
-
     def __str__(self) -> str:
         return f"{self.dice}x{self.compare}"
 
-    def _calculate_explode_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool:
+        return dice == compare
+
+    @staticmethod
+    def _calculate_explode_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
         return roll_values == cmp_values
 
 
@@ -59,37 +80,54 @@ class ExplodeIfGreater(BaseExplode):
     def __str__(self) -> str:
         return f"{self.dice}x>{self.compare}"
 
-    def _calculate_explode_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool:
+        return dice > compare
+
+    @staticmethod
+    def _calculate_explode_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
         return roll_values > cmp_values  # type: ignore
 
 
 @dataclass
 class ExplodeIfGreaterOrEq(BaseExplode):
-
     def __str__(self) -> str:
         return f"{self.dice}x>={self.compare}"
 
-    def _calculate_explode_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool:
+        return dice >= compare
+
+    @staticmethod
+    def _calculate_explode_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
         return roll_values >= cmp_values  # type: ignore
 
 
 @dataclass
 class ExplodeIfLess(BaseExplode):
-
     def __str__(self) -> str:
         return f"{self.dice}x<{self.compare}"
 
-    def _calculate_explode_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool:
+        return dice < compare
+
+    @staticmethod
+    def _calculate_explode_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
         return roll_values < cmp_values  # type: ignore
 
 
 @dataclass
 class ExplodeIfLessOrEq(BaseExplode):
-
     def __str__(self) -> str:
         return f"{self.dice}x<={self.compare}"
 
-    def _calculate_explode_mask(self, roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
+    @staticmethod
+    def _compare_histogram_outcome(dice: int, compare: int) -> bool:
+        return dice <= compare
+
+    @staticmethod
+    def _calculate_explode_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike:
         return roll_values <= cmp_values  # type: ignore
 
 
