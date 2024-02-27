@@ -1,9 +1,62 @@
 
 # Dice Roller
 
-[![dyce-powered](https://raw.githubusercontent.com/posita/dyce/latest/docs/dyce-powered.svg)][dyce-powered]
+[![PyPI - Version](https://img.shields.io/pypi/v/pydiceroll)](https://pypi.org/project/pydiceroll/)
+![GitHub License](https://img.shields.io/github/license/dokzlo13/dice_roller)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pydiceroll)
+[![dyce-powered](https://raw.githubusercontent.com/posita/dyce/latest/docs/dyce-powered.svg)](https://posita.github.io/dyce/)
 
-[dyce-powered]: https://posita.github.io/dyce/ "dyce-powered!"
+> Welcome to `dice_roller`, a Python library for anyone keen on rolling dice and exploring the probabilities behind them. 
+
+Built on the shoulders of numpy, this library doesn't just promise speed; it delivers it, enabling you to churn out massive numbers of dice rolls as numpy arrays without breaking a sweat.
+
+### Why `dice_roller`?
+
+- **Fast and Efficient**: Thanks to numpy, Dice Roller is incredibly fast **(TODO: PROOFS)**, making it possible to generate a large number of dice rolls quickly and efficiently. Perfect for when you need to simulate thousands of rolls in the blink of an eye.
+- **Probability Modeling** with [dyce](https://posita.github.io/dyce/): Curious about the odds? We integrate with the dyce library for probability modeling, allowing you to dive deeper into the mathematics of dice rolling and get a clearer picture of potential outcomes.
+- **Pretty API**: Forget about the complexity; our API is designed to be as pretty and simple as existing dice notations. It's intuitive, easy to understand, and makes dice rolling in Python a breeze.
+- **Rich Notation Support**: From "keep highest" and "reroll on x" to "explode" – we've got you covered. Dice Roller supports an array of familiar dice notations, so you can express complex rolling strategies in a way that feels natural.
+
+### Why NOT `dice_roller`?
+
+While **`dice_roller`** offers a variety of features for dice rolling enthusiasts and developers, it's also important to understand its limitations. Here's why `dice_roller` might not be the right fit for everyone:
+
+- **Early Version with Limited Test Coverage**: As a small hobby project, `dice_roller` is in its early stages. This means its test coverage is not as extensive as more mature libraries.
+- **Designed for Simplicity, Not Complexity**: Our philosophy with `dice_roller` is to provide a simple, straightforward way to simulate dice rolls. Each roll is designed to have **one** outcome. If your project requires rolling pools of different dice and combining outcomes in more complex ways, `dice_roller` might not offer the flexibility you need without additional custom logic.
+- **No Dice Notation Parsing**: Unlike some other libraries, `dice_roller` focuses on using Python-based primitives for defining dice rolls rather than parsing arbitrary dice notation strings. This approach makes for a clean and intuitive API but may not suit everyone's needs, especially if you're looking for direct notation string parsing capabilities.
+- **Probability Modeling is Secondary**: Though `dice_roller` integrates with the `dyce` library for probability modeling, it's important to note that our main goal is to provide a pleasant API for rolling dice and handling common dice notations. If your primary focus is on modeling complex dice mechanics and probabilities, there are other tools specifically designed for that purpose which might better suit your needs.
+
+
+## Get Rolling
+
+Ready to give it a try? Installing `dice_roller` is as easy as pie:
+
+```bash
+pip install pydiceroll
+```
+
+> **Interesting fact**: do you know, almost every `dice roller` - like package name is already taken on pypi?
+
+### Example Usage
+
+Let's roll some dice:
+
+```python
+from dice_roller import Dice
+
+d20 = Dice(20) + 4
+print(f"Rolling {d20} ...")
+roll = d20.roll()
+
+print(f"Rolled {roll}")
+```
+
+And now we have shiny new rolled dice.
+
+```
+rolling (d20 + 4) ...
+Rolled 8
+```
 
 ## Highlights
 
@@ -58,24 +111,6 @@ kl(2@skill_check_roll).roll()  # roll skill check roll with disadvantage
 
 ### Basics
 
-Let's jump in:
-
-```python
-from dice_roller import Dice
-
-d20 = Dice(20)
-print(f"Rolling {d20} ...")
-roll = d20.roll()
-
-print(f"Rolled {roll}")
-```
-
-And now we have shiny new rolled dice.
-
-```
-rolling d20 ...
-Rolled 6
-```
 
 Main feature of this library - ability to roll large amount of rolls simultaneously, using magical powers of [numpy](https://numpy.org/).
 
@@ -95,7 +130,7 @@ print(rolls, type(rolls))
   5 12  5 12] <class 'numpy.ndarray'>
 ```
 
-But for now let's keep things simple and focus on the other features. One important thing you need to remember now - almost all things from `dice_roller` supports batch generation with `generate(total)` method.
+But for now let's keep things simple and focus on the other features. One important thing you need to remember now - almost all dice objects from `dice_roller` supports batch generation with `generate(total)` method.
 
 For future understanding, lets also use some important `dice_roller` apis. Here we can check possible extremes of the dice roll outcome:
 
@@ -261,14 +296,38 @@ var |   17.17
 
 `histogram()` method of the `BaseDice` returns [dyce.H](https://posita.github.io/dyce/0.6/dyce/#dyce.h.H) object. Returned histogram will contain finite discrete outcomes, with all modifiers applied to it.
 
-Unfortunately, because `dice_roller` requires each transformation to return only one deterministic integer for each `roll()`, it not supports [dyce.P](https://posita.github.io/dyce/0.6/dyce/#dyce.p.P) (Dice pools) on cases like 2d6 dices rolled.
+Unfortunately, because `dice_roller` requires each transformation to return only one deterministic integer for each `roll()`, it not supports [dyce.P](https://posita.github.io/dyce/0.6/dyce/#dyce.p.P) (Dice pools) on cases with multiple dices rolled (like 2d6). Despite this, `dice_roller` will correctly calculate the histogram for this case.
+
+```python
+from dice_roller import d, kh
+
+print(kh(5 @ d(6), keep=2).histogram().format(scaled=True))
+
+```
+
+```
+avg |    9.93
+std |    1.71
+var |    2.91
+  2 |   0.01% |
+  3 |   0.06% |
+  4 |   0.40% |
+  5 |   1.03% |##
+  6 |   2.71% |#####
+  7 |   5.21% |##########
+  8 |   9.98% |#####################
+  9 |  15.43% |################################
+ 10 |  21.81% |#############################################
+ 11 |  23.73% |##################################################
+ 12 |  19.62% |#########################################
+ ```
 
 Let's compare two approaches:
 
 ```python
 from dice_roller import BaseDice, d, kh
 
-# Roll to hit with advantage, use bless (+d4) and add +3 modifier
+# Roll to hit with advantage, use bless (+d4) and add +5 modifier
 r = kh(2 @ d(20)) + d(4) + 5
 
 def stats_simulation(r: BaseDice):
@@ -291,9 +350,9 @@ stats_histogram(r)
 ```
 
 ```
-Mean: 21.330275
-Std : 4.84100025040022
-Var : 23.43528342437499
+Mean: 21.3224029
+Std : 4.841713051190826
+Var : 23.44218527007158
 ----------------------------------------
 Mean: 21.325
 Std : 4.841939177643606
@@ -431,6 +490,7 @@ print(f"Average: {dice_8d6.average():.0f}")
 print(f"Rolled {dice_8d6.roll():.0f}")
 ```
 
+
 ```
 Fireball deals '8d6' damage:
 At least: 8
@@ -444,8 +504,10 @@ You can also create `<dice>` roll of `<dice>`:
 ```python
 from dice_roller import Dice
 
-dice_d4d6 = Dice(4)@Dice(6)
+(Dice(4)@Dice(6)).roll()  # 16
 ```
+
+> **Important**: Parentheses are needed in the above example because `@` has a lower precedence than `.`
 
 In this case, `dice_roller` will first roll `d4` for amount of `d6` dices to roll, and then roll this amount of `d6` and add them together to calculate outcome.
 

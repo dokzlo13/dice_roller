@@ -1,16 +1,28 @@
 [tool.poetry]
-name = "dice-roller"
+name = "pydiceroll"
 version = "0.1.0"
-description = "Python tool for rolling a lot of dices"
+description = "Python tool for rolling a lot of dice"
 authors = ["Aleksei Zakharov <dokzlo13@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+homepage = "https://github.com/dokzlo13/dice_roller"
+repository = "https://github.com/dokzlo13/dice_roller"
+keywords = ["dice", "simulation", "probability", "gaming", "numpy"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Topic :: Games/Entertainment",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Development Status :: 3 - Alpha",
+]
+packages = [{ include = "dice_roller" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
 numpy = "^1.26.4"
 dyce = "^0.6.2"
-
 
 [build-system]
 requires = ["poetry-core"]

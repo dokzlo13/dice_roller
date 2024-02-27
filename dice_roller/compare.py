@@ -2,14 +2,11 @@ from dataclasses import dataclass
 from typing import Callable, Protocol
 
 import numpy as np
-from numpy.typing import ArrayLike
 from dyce import H
-from dyce.evaluation import expandable, HResult
-
+from dyce.evaluation import HResult, expandable
+from numpy.typing import ArrayLike
 
 from .core import BaseDice
-
-ExplodeDice = Callable[[BaseDice], BaseDice]
 
 
 @dataclass
