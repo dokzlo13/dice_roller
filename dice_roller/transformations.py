@@ -10,7 +10,7 @@ from numpy.typing import ArrayLike
 from .core import BaseDice, DiceMany, Scalar
 
 
-@dataclass
+@dataclass(slots=True)
 class KeepHighest(BaseDice):
     dice: BaseDice
     keep: BaseDice = field(default_factory=lambda: Scalar(1))
@@ -62,7 +62,7 @@ class KeepHighest(BaseDice):
         return results
 
 
-@dataclass
+@dataclass(slots=True)
 class KeepLowest(BaseDice):
     dice: BaseDice
     keep: BaseDice = field(default_factory=lambda: Scalar(1))
@@ -113,7 +113,7 @@ class KeepLowest(BaseDice):
         return results
 
 
-@dataclass
+@dataclass(slots=True)
 class DropHighest(BaseDice):
     dice: BaseDice
     drop: BaseDice = field(default_factory=lambda: Scalar(1))
@@ -168,7 +168,7 @@ class DropHighest(BaseDice):
         return results
 
 
-@dataclass
+@dataclass(slots=True)
 class DropLowest(BaseDice):
     dice: BaseDice
     drop: BaseDice = field(default_factory=lambda: Scalar(1))

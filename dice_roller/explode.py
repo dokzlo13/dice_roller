@@ -12,7 +12,7 @@ from .core import BaseDice, Scalar
 ExplodeDice = Callable[[BaseDice], BaseDice]
 
 
-@dataclass
+@dataclass(slots=True)
 class BaseExplode(BaseDice, Protocol):
     dice: BaseDice
     compare: BaseDice
@@ -60,7 +60,7 @@ class BaseExplode(BaseDice, Protocol):
         return results
 
 
-@dataclass
+@dataclass(slots=True)
 class ExplodeEq(BaseExplode):
     def __str__(self) -> str:
         return f"{self.dice}x{self.compare}"
@@ -74,7 +74,7 @@ class ExplodeEq(BaseExplode):
         return roll_values == cmp_values
 
 
-@dataclass
+@dataclass(slots=True)
 class ExplodeIfGreater(BaseExplode):
 
     def __str__(self) -> str:
@@ -89,7 +89,7 @@ class ExplodeIfGreater(BaseExplode):
         return roll_values > cmp_values  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class ExplodeIfGreaterOrEq(BaseExplode):
     def __str__(self) -> str:
         return f"{self.dice}x>={self.compare}"
@@ -103,7 +103,7 @@ class ExplodeIfGreaterOrEq(BaseExplode):
         return roll_values >= cmp_values  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class ExplodeIfLess(BaseExplode):
     def __str__(self) -> str:
         return f"{self.dice}x<{self.compare}"
@@ -117,7 +117,7 @@ class ExplodeIfLess(BaseExplode):
         return roll_values < cmp_values  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class ExplodeIfLessOrEq(BaseExplode):
     def __str__(self) -> str:
         return f"{self.dice}x<={self.compare}"

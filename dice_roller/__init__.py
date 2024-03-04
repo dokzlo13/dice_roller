@@ -4,15 +4,17 @@ from .compare import Ge, Gt, Le, Lt
 from .core import (
     BaseDice,
     Dice,
-    DiceAdd,
-    DiceDiv,
     DiceMany,
-    DiceMul,
-    DiceSub,
     RangeDice,
     Scalar,
 )
 from .explode import Explode
+from .math import (
+    DiceAdd,
+    DiceDiv,
+    DiceMul,
+    DiceSub,
+)
 from .reroll import Reroll
 from .transformations import DropHighest, DropLowest, KeepHighest, KeepLowest
 

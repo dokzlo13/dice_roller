@@ -8,7 +8,7 @@ from numpy.typing import ArrayLike
 from .core import BaseDice
 
 
-@dataclass
+@dataclass(slots=True)
 class WithRollCallback(BaseDice):
     dice: BaseDice
     roll_callback: Callable[[int], None]
@@ -32,7 +32,7 @@ class WithRollCallback(BaseDice):
         return self.dice.generate(items)
 
 
-@dataclass
+@dataclass(slots=True)
 class WithGenerateCallback(BaseDice):
     dice: BaseDice
     generate_callback: Callable[[ArrayLike], None]

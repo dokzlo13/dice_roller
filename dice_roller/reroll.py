@@ -12,7 +12,7 @@ from .core import BaseDice, Scalar
 RerollDice = Callable[[BaseDice], BaseDice]
 
 
-@dataclass
+@dataclass(slots=True)
 class BaseReroll(BaseDice, Protocol):
     dice: BaseDice
     compare: BaseDice
@@ -57,7 +57,7 @@ class BaseReroll(BaseDice, Protocol):
         return result
 
 
-@dataclass
+@dataclass(slots=True)
 class RerollEq(BaseReroll):
     def __str__(self) -> str:
         return f"{self.dice}r{self.compare}"
@@ -71,7 +71,7 @@ class RerollEq(BaseReroll):
         return roll_values == cmp_values
 
 
-@dataclass
+@dataclass(slots=True)
 class RerollIfGreater(BaseReroll):
     def __str__(self) -> str:
         return f"{self.dice}r>{self.compare}"
@@ -85,7 +85,7 @@ class RerollIfGreater(BaseReroll):
         return roll_values > cmp_values  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class RerollIfGreaterOrEq(BaseReroll):
     def __str__(self) -> str:
         return f"{self.dice}r>={self.compare}"
@@ -99,7 +99,7 @@ class RerollIfGreaterOrEq(BaseReroll):
         return roll_values >= cmp_values  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class RerollIfLess(BaseReroll):
     def __str__(self) -> str:
         return f"{self.dice}r<{self.compare}"
@@ -113,7 +113,7 @@ class RerollIfLess(BaseReroll):
         return roll_values < cmp_values  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class RerollIfLessOrEq(BaseReroll):
     def __str__(self) -> str:
         return f"{self.dice}r<={self.compare}"

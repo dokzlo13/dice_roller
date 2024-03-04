@@ -9,7 +9,7 @@ from numpy.typing import ArrayLike
 from .core import BaseDice
 
 
-@dataclass
+@dataclass(slots=True)
 class BaseCompare(BaseDice, Protocol):
     dice: BaseDice
     compare: BaseDice
@@ -35,7 +35,7 @@ class BaseCompare(BaseDice, Protocol):
         return self._with_cap(result_rolls, cmp_rolls)  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class Lt(BaseCompare):
     def __str__(self) -> str:
         return f"{self.dice}<{self.compare}"
@@ -55,7 +55,7 @@ class Lt(BaseCompare):
         return np.minimum(roll_values, (cmp_values - 1))  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class Le(BaseCompare):
     def __str__(self) -> str:
         return f"{self.dice}<={self.compare}"
@@ -75,7 +75,7 @@ class Le(BaseCompare):
         return np.minimum(roll_values, cmp_values)  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class Gt(BaseCompare):
     def __str__(self) -> str:
         return f"{self.dice}>{self.compare}"
@@ -95,7 +95,7 @@ class Gt(BaseCompare):
         return np.maximum(roll_values, (cmp_values + 1))  # type: ignore
 
 
-@dataclass
+@dataclass(slots=True)
 class Ge(BaseCompare):
     def __str__(self) -> str:
         return f"{self.dice}>={self.compare}"

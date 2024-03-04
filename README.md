@@ -75,6 +75,22 @@ modifier = s(5)  # Scalar, `dice_roller` converts integers to Scalar automatical
 roll_info(modifier)  # For dice '5' min is 5 and max is 5
 roll_info(d20 + modifier)  # For dice '(d20 + 5)' min is 6 and max is 25
 
+# Some code
+attack_roll = kh(2@d20) + d(4) + 3  # Roll to hit with advantage, use bless (+d4) and add +3 modifier
+roll_info(attack_roll)  # For dice '(2d20kh + d4 + 3)' min is 5 and max is 27
+attack_results = attack_roll.generate(10_000)  # Generates 10000 rolls
+hit_ac = attack_results[attack_results >= 16]  # numpy stuff
+
+damage_roll = 2@(d(6).x == 6) + 5  # Roll 2d6 (explode on 6), add 5. Explode max 100 times (default)
+roll_info(damage_roll)  # For dice '(2d6x6 + 5)' min is 7 and max is 1205
+
+reroll_ones = (r(reroll_limit=1) == 1)  # Create reroll ones modifier (max 1 reroll)
+skill_check_roll = reroll_ones(d20) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4
+skill_check_roll = (d20.r == 1) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4 - another approach
+roll_info(skill_check_roll)  # For dice '(d20r1 + 4)' min is 5 and max is 24
+kl(2@skill_check_roll).roll()  # roll skill check roll with disadvantage
+
+# More examples
 fudge_dice = rng(-1, 2)                 # fudge dice
 4@fudge_dice                            # roll 4 fudge dices, add results together
 (d20 - 4) >= 1                          # roll d20-4, ensure result greater or equal to 1
@@ -85,32 +101,16 @@ d(6).r == rng(1, 3)                     # roll d6, rerolls on 1 or 2 (new reroll
 d(20).reroll(reroll_limit=10) == 1      # roll d20, rerolls on 1, max 10 rerolls
 d(6).x >= 5                             # roll d6, explodes on 5 and 6. Maximum 100 explodes (default)
 d(6).explode(explode_depth=2) > 4       # roll d6, explodes on 5 and 6. Maximum 2 explodes
-10@d(10) * 10@d(10)                     # roll 2 sets of 10d10 and multiply results
+(10@d(10)) * (10@d(10))                 # roll 2 sets of 10d10 and multiply results
 (4 @ d(4)) @ d(10)                      # roll 4d4 of d10 dices
 
 # roll d6 of (roll d4 of d20 dice, keep 1 highest) and drop d4 lowest. Ensure (d4 explodes on 4) <= result <= (d100 reroll <= 50).
 (dl(d(6) @ kl(d(4) @ d(20)), drop=d(4)) >= (d(4).x == 4)) <= (d(100).r <= 50)
-
-# Some code
-attack_roll = kh(2@d20) + d(4) + 3  # Roll to hit with advantage, use bless (+d4) and add +3 modifier
-roll_info(attack_roll)  # For dice '(2d20kh + d4 + 3)' min is 5 and max is 27
-attack_results = attack_roll.generate(10_000)  # Generates 10000 rolls
-hit_ac = attack_results[attack_results >= 16]  # numpy stuff
-
-damage_roll = 2@(x() == 6)(d(6)) + 5  # Roll 2d6 (explode on 6), add 5
-roll_info(damage_roll)  # For dice '(2d6x6 + 5)' min is 7 and max is 17
-
-reroll_ones = (r(reroll_limit=1) == 1)  # Create reroll ones modifier (max 1 reroll)
-skill_check_roll = reroll_ones(d20) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4
-skill_check_roll = (d20.r == 1) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4 - another approach
-roll_info(skill_check_roll)  # For dice '(d20r1 + 4)' min is 5 and max is 24
-kl(2@skill_check_roll).roll()  # roll skill check roll with disadvantage
 ```
 
 ## Tutorial
 
 ### Basics
-
 
 Main feature of this library - ability to roll large amount of rolls simultaneously, using magical powers of [numpy](https://numpy.org/).
 
@@ -382,7 +382,7 @@ Running the simulation takes a good couple of seconds, while the histogram metho
 
 Let's return back to dices. Second important dice type after regular `Dice` is `Scalar`. This type of dice simply returns constant value.
 Many overload operations logic converts integers to the `Scalar` automatically, before applying modifications to original dice.
-But if you use objects, like `Max` from `dice_roller` in your code, prefer to convert your constants into this type.
+But if you want to manually use `dice_roller` objects, like `DiceAdd` in your code, you need to convert your constants into this type first.
 
 `Scalar` is also `BaseDice`, so it implements all required API, it is useful in combinations with other dices, but you can always generate huge array of constant, using this dice.
 
@@ -398,16 +398,26 @@ print(plus5.generate(10)) # [5 5 5 5 5 5 5 5 5 5]
 #### RangeDice
 
 If `Dice` supports only positive integers (in general), with `RangeDice` you can specify own ranges for the dice.
-Range specified as in python [ranges](https://docs.python.org/3/library/functions.html#func-range) (e.g. `[start, ..., end)`), but step is not available (yet)
+Range specified as in python [ranges](https://docs.python.org/3/library/functions.html#func-range) (e.g. `[start, ..., end)`).
 
 Here is example of how to create [fudge](https://en.wikipedia.org/wiki/Fudge_(role-playing_game_system)#Fudge_dice) dice.
 
 ```python
 from dice_roller import RangeDice
 
+def roll_info(roll: BaseDice):
+    print(f"For dice '{roll}' min is {roll.min()} and max is {roll.max()}")
+
 fudge = RangeDice(-1, 2)
-print(f"For dice '{fudge}' min is {fudge.min()} and max is {fudge.max()}")
-# For dice 'd[-1 to 2]' min is -1 and max is 1
+roll_info(fudge)  # For dice 'rng(-1,2)' min is -1 and max is 1
+
+```
+
+You can also provide step value during dice creation:
+
+```python
+even_only_dice = RangeDice(2, 11, 2)  # [2, 4, 6, 8, 10]
+roll_info(even_only_dice)  # For dice 'rng(2,11,2)' min is 2 and max is 10
 ```
 
 #### Dice Types Conclusion
@@ -432,23 +442,18 @@ fudge = rng(-1, 2)
 
 We already slipped through some basics arithmetical operations. What else we can do with our dices?
 
-
 #### Limits
 
 As you can see in basic arithmetic examles below, dice `d20-4` may outcome negative minimal value. It's because lowest result of the d20 roll is `1`, and `1-4=-3`.
 
-We can ensure dice outcome will be in bounds by providing limit, both with comparison operators overload or with `Min` and `Max` wrapper:
+We can ensure dice outcome will be in bounds by providing limit with comparison operators overload:
 
 ```python
 from dice_roller import Dice
 d20 = Dice(20)
 
 safe_roll = (d20 - 4) >= 1 # roll of the (d20 - 4) must be greater or equal to 1
-roll_info(safe_roll)
-```
-
-```
-For dice '(d20 - 4)>=1' min is 1 and max is 16
+roll_info(safe_roll)  # For dice '(d20 - 4)>=1' min is 1 and max is 16
 ```
 
 `dice_roller` support different types of limits:
@@ -467,15 +472,16 @@ d20 >= d(4)  # d20 greater or equal to value of d4
 d20 <= d(4)  # d20 less or equal to value of d4
 ```
 
-As you see, here is no `==` operator supported. This has no sense - in case of `==`, any roll can be reduced to simple `Scalar`.
+As you see, here is no `==` operator supported. This has no sense - in case of `==`, any roll can be replaced with `Scalar`, and you should do this instead.
 
 #### Multiple Dices
 
 First thing we can make after rolling some dices - roll even more dices!
 
 Python’s matrix multiplication operator (@) is used to express the number of a particular die (roughly equivalent to the "d" operator in common notations).
+When you create multiple dice request, like `3d4`, result of the roll will always be sum of the all values of all requested dices rolled. One return value for roll - is the part of `dice_roller` philosophy.
 
-Your D&D wizard throws fireball, and you want to roll 8d6 fire damage? Easy:
+So, your D&D wizard throws fireball, and you want to roll 8d6 fire damage? Easy:
 
 ```python
 from dice_roller import Dice
@@ -489,7 +495,6 @@ print(f"At most: {dice_8d6.max()}")
 print(f"Average: {dice_8d6.average():.0f}")
 print(f"Rolled {dice_8d6.roll():.0f}")
 ```
-
 
 ```
 Fireball deals '8d6' damage:
@@ -513,7 +518,7 @@ In this case, `dice_roller` will first roll `d4` for amount of `d6` dices to rol
 
 #### Keep Highest
 
-This modifier causes the `dice_roller` to keep and add together a number of dice you specify, selecting the highest of the roll results available. Without a specified args it will keep the single highest number of two. If the number of dice to roll (`of`) is less than the number of dice being kept (`keep`) then it will keep all the rolls made.
+This modifier causes the `dice_roller` to keep and add together a number of dice you specify, selecting the highest of the roll results available. Without a specified args it will keep the single highest roll. If the number of dice to roll (`of`) is less than the number of dice being kept (`keep`) then it will keep all the rolls made.
 
 Let's simulate D&D 5e "Advantage"
 
@@ -545,7 +550,7 @@ kh(d(6) @ kh(d(4) @ d(20)), keep=d(4))  # roll d6 of (roll d4 of d20 dice, keep 
 
 #### Keep Lowest
 
-This modifier causes the `dice_roller` to keep and add together a number of dice you specify, selecting the lowest of the roll results available. Without a specified args it will keep the single lowest number of two. If the number of dice to roll (`of`) is less than the number of dice being kept (`keep`) then it will keep all the rolls made.
+This modifier causes the `dice_roller` to keep and add together a number of dice you specify, selecting the lowest of the roll results available. Without a specified args it will keep the single lowest roll. If the number of dice to roll (`of`) is less than the number of dice being kept (`keep`) then it will keep all the rolls made.
 
 Let's simulate D&D 5e "Disadvantage"
 
@@ -577,7 +582,7 @@ kl(d(6) @ kl(d(4) @ d(20)), keep=d(4))  # roll d6 of (roll d4 of d20 dice, keep 
 
 #### Drop Highest
 
-This modifier causes the `dice_roller` to drop a number of dice you specify, selecting the highest of the roll results available. Rest of the rolls added together. If no args specified, then it will drop the one highest number rolled of two. If the number of dice to roll (`of`) is less than the number of dice to drop (`drop`), then it will keep all the rolls made.
+This modifier causes the `dice_roller` to drop a number of dice you specify, selecting the highest of the roll results available. Rest of the rolls added together. If no args specified, then it will drop the one highest number rolled. If the number of dice to roll (`of`) is less than the number of dice to drop (`drop`), then it will keep all the rolls made.
 
 We can also simulate D&D 5e "Disadvantage" mechanic with this modifier:
 
@@ -609,7 +614,7 @@ dh(d(6) @ dh(d(4) @ d(20)), drop=d(4))  # roll d6 of (roll d4 of d20 dice, drop 
 
 #### Drop Lowest
 
-This modifier causes the `dice_roller` to drop a number of dice you specify, selecting the lowest of the roll results available. Rest of the rolls added together. If no args specified, then it will drop the one lowest number rolled of two. If the number of dice to roll (`of`) is less than the number of dice to drop (`drop`), then it will keep all the rolls made.
+This modifier causes the `dice_roller` to drop a number of dice you specify, selecting the lowest of the roll results available. Rest of the rolls added together. If no args specified, then it will drop the one lowest number rolled. If the number of dice to roll (`of`) is less than the number of dice to drop (`drop`), then it will keep all the rolls made.
 
 We can simulate D&D 5e  "Advantage" mechanic with this modifier:
 
