@@ -14,7 +14,9 @@ from .random import Rng
 
 @runtime_checkable
 class BaseDice(Protocol):
+
     # Interface methods
+
     def generate(self, items: int) -> ArrayLike: ...
 
     def max(self) -> int: ...
@@ -299,13 +301,10 @@ class DiceMany(BaseDice):
         for roll_count in range(1, max_rolls + 1):
             mask = total_rolls >= roll_count  # type: ignore
             num_items_this_round = np.sum(mask)
-
             # If no items require processing, exit the loop early
             if num_items_this_round == 0:
                 break
-
             # Generate and sum the dice rolls for items requiring them
-            this_round_rolls = self.dice.generate(num_items_this_round)
-            result[mask] += this_round_rolls  # type: ignore
+            result[mask] += self.dice.generate(num_items_this_round)  # type: ignore
 
         return result

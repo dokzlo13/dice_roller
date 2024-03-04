@@ -4,12 +4,12 @@ from typing import Callable, Protocol
 
 import numpy as np
 from dyce import H
-from dyce.evaluation import expandable, HResult
+from dyce.evaluation import HResult, expandable
 from numpy.typing import ArrayLike
 
 from .core import BaseDice, Scalar
 
-RerollDice = Callable[[BaseDice], BaseDice]
+RerollDiceModifier = Callable[[BaseDice], BaseDice]
 
 
 @dataclass(slots=True)
@@ -31,28 +31,29 @@ class BaseReroll(BaseDice, Protocol):
         return self.dice.min()
 
     def histogram(self) -> H:
-        @expandable
-        def reroll(compare: HResult, dice: HResult):
-            return dice.h if self._compare_histogram_outcome(dice.outcome, compare.outcome) else dice.outcome  # type: ignore
+        dice_hist = self.dice.histogram()
 
-        return reroll(self.compare.histogram(), self.dice.histogram())
+        @expandable(sentinel=dice_hist)
+        def _reroll(compare: HResult, dice: HResult):
+            if self._compare_histogram_outcome(dice.outcome, compare.outcome):  # type: ignore
+                # Replace a roll with rerolled dice
+                return _reroll(compare.h, dice.h)  # type: ignore
+            else:
+                return dice.outcome
+
+        return _reroll(self.compare.histogram(), dice_hist, limit=self.reroll_limit - 1)  # type: ignore
 
     def generate(self, items: int) -> ArrayLike:
         result = self.dice.generate(items)
-        reroll_count = 0
+        for _ in range(self.reroll_limit):
+            compare_values = self.compare.generate(items)
+            reroll_mask = self._calculate_reroll_mask(result, compare_values)
 
-        # Generate the comparison values once per reroll cycle
-        compare_values = self.compare.generate(items)
+            if not np.any(reroll_mask):
+                break
 
-        reroll_mask = self._calculate_reroll_mask(result, compare_values)
-        while np.any(reroll_mask) and reroll_count < self.reroll_limit:
             rerolls = self.dice.generate(np.sum(reroll_mask))
             result[reroll_mask] = rerolls  # type: ignore
-            reroll_count += 1
-            # Re-evaluate reroll conditions if necessary
-            if reroll_count < self.reroll_limit:
-                compare_values = self.compare.generate(items)
-                reroll_mask = self._calculate_reroll_mask(result, compare_values)
 
         return result
 
@@ -139,19 +140,19 @@ class Reroll:
     def __init__(self, reroll_limit: int = 1) -> None:
         self.reroll_limit = reroll_limit
 
-    def __eq__(self, value: BaseDice | int) -> RerollDice:  # type: ignore
+    def __eq__(self, value: BaseDice | int) -> RerollDiceModifier:  # type: ignore
         return partial(RerollEq, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
 
-    def __gt__(self, value: BaseDice | int) -> RerollDice:
+    def __gt__(self, value: BaseDice | int) -> RerollDiceModifier:
         return partial(RerollIfGreater, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
 
-    def __ge__(self, value: BaseDice | int) -> RerollDice:
+    def __ge__(self, value: BaseDice | int) -> RerollDiceModifier:
         return partial(RerollIfGreaterOrEq, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
 
-    def __lt__(self, value: BaseDice | int) -> RerollDice:
+    def __lt__(self, value: BaseDice | int) -> RerollDiceModifier:
         return partial(RerollIfLess, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
 
-    def __le__(self, value: BaseDice | int) -> RerollDice:
+    def __le__(self, value: BaseDice | int) -> RerollDiceModifier:
         return partial(RerollIfLessOrEq, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
 
 
@@ -163,14 +164,14 @@ class _RerollFactory:
     def __eq__(self, value: BaseDice | int) -> BaseReroll:  # type: ignore
         return RerollEq(dice=self.dice, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)  # type: ignore
 
-    def __gt__(self, value: BaseDice | int) -> RerollDice:
+    def __gt__(self, value: BaseDice | int) -> BaseReroll:
         return RerollIfGreater(dice=self.dice, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)  # type: ignore
 
-    def __ge__(self, value: BaseDice | int) -> RerollDice:
+    def __ge__(self, value: BaseDice | int) -> BaseReroll:
         return RerollIfGreaterOrEq(dice=self.dice, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)  # type: ignore
 
-    def __lt__(self, value: BaseDice | int) -> RerollDice:
+    def __lt__(self, value: BaseDice | int) -> BaseReroll:
         return RerollIfLess(dice=self.dice, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)  # type: ignore
 
-    def __le__(self, value: BaseDice | int) -> RerollDice:
+    def __le__(self, value: BaseDice | int) -> BaseReroll:
         return RerollIfLessOrEq(dice=self.dice, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)  # type: ignore

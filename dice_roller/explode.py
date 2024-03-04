@@ -9,14 +9,14 @@ from numpy.typing import ArrayLike
 
 from .core import BaseDice, Scalar
 
-ExplodeDice = Callable[[BaseDice], BaseDice]
+ExplodeDiceModifier = Callable[[BaseDice], BaseDice]
 
 
 @dataclass(slots=True)
 class BaseExplode(BaseDice, Protocol):
     dice: BaseDice
     compare: BaseDice
-    explode_depth: int = field(default=1)
+    explode_depth: int = field(default=100)
 
     @staticmethod
     def _compare_histogram_outcome(dice: int, compare: int) -> bool: ...
@@ -25,15 +25,17 @@ class BaseExplode(BaseDice, Protocol):
     def _calculate_explode_mask(roll_values: ArrayLike, cmp_values: ArrayLike) -> ArrayLike: ...
 
     def histogram(self) -> H:
-        @expandable
-        def explode(compare: HResult, dice: HResult):
-            return (
-                dice.h + dice.outcome
-                if self._compare_histogram_outcome(dice.outcome, compare.outcome)  # type: ignore
-                else dice.outcome
-            )
+        dice_hist = self.dice.histogram()
 
-        return explode(self.compare.histogram(), self.dice.histogram())
+        @expandable(sentinel=dice_hist)
+        def _explode(compare: HResult, dice: HResult):
+            if self._compare_histogram_outcome(dice.outcome, compare.outcome):  # type: ignore
+                # Replace a high roll with sum of the roll and recursively exploding dice
+                return dice.outcome + _explode(compare.h, dice.h)  # type: ignore
+            else:
+                return dice.outcome
+
+        return _explode(self.compare.histogram(), dice_hist, limit=self.explode_depth - 1)  # type: ignore
 
     def max(self) -> int:
         return self.dice.max() * self.explode_depth
@@ -140,41 +142,41 @@ def _wrap_scalar(value: BaseDice | int) -> BaseDice:
 
 
 class Explode:
-    def __init__(self, explode_depth: int = 1) -> None:
+    def __init__(self, explode_depth: int = 100) -> None:
         self.explode_depth = explode_depth
 
-    def __eq__(self, value: BaseDice | int) -> ExplodeDice:  # type: ignore
+    def __eq__(self, value: BaseDice | int) -> ExplodeDiceModifier:  # type: ignore
         return partial(ExplodeEq, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
 
-    def __gt__(self, value: BaseDice | int) -> ExplodeDice:
+    def __gt__(self, value: BaseDice | int) -> ExplodeDiceModifier:
         return partial(ExplodeIfGreater, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
 
-    def __ge__(self, value: BaseDice | int) -> ExplodeDice:
+    def __ge__(self, value: BaseDice | int) -> ExplodeDiceModifier:
         return partial(ExplodeIfGreaterOrEq, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
 
-    def __lt__(self, value: BaseDice | int) -> ExplodeDice:
+    def __lt__(self, value: BaseDice | int) -> ExplodeDiceModifier:
         return partial(ExplodeIfLess, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
 
-    def __le__(self, value: BaseDice | int) -> ExplodeDice:
+    def __le__(self, value: BaseDice | int) -> ExplodeDiceModifier:
         return partial(ExplodeIfLessOrEq, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
 
 
 class _ExplodeFactory:
-    def __init__(self, dice: BaseDice, explode_depth: int = 1) -> None:
+    def __init__(self, dice: BaseDice, explode_depth: int = 100) -> None:
         self.dice = dice
         self.explode_depth = explode_depth
 
-    def __eq__(self, value: BaseDice | int) -> ExplodeDice:  # type: ignore
+    def __eq__(self, value: BaseDice | int) -> BaseExplode:  # type: ignore
         return ExplodeEq(self.dice, compare=_wrap_scalar(value), explode_depth=self.explode_depth)  # type: ignore
 
-    def __gt__(self, value: BaseDice | int) -> ExplodeDice:
+    def __gt__(self, value: BaseDice | int) -> BaseExplode:
         return ExplodeIfGreater(self.dice, compare=_wrap_scalar(value), explode_depth=self.explode_depth)  # type: ignore
 
-    def __ge__(self, value: BaseDice | int) -> ExplodeDice:
+    def __ge__(self, value: BaseDice | int) -> BaseExplode:
         return ExplodeIfGreaterOrEq(self.dice, compare=_wrap_scalar(value), explode_depth=self.explode_depth)  # type: ignore
 
-    def __lt__(self, value: BaseDice | int) -> ExplodeDice:
+    def __lt__(self, value: BaseDice | int) -> BaseExplode:
         return ExplodeIfLess(self.dice, compare=_wrap_scalar(value), explode_depth=self.explode_depth)  # type: ignore
 
-    def __le__(self, value: BaseDice | int) -> ExplodeDice:
+    def __le__(self, value: BaseDice | int) -> BaseExplode:
         return ExplodeIfLessOrEq(self.dice, compare=_wrap_scalar(value), explode_depth=self.explode_depth)  # type: ignore

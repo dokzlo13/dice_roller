@@ -55,7 +55,7 @@ class DiceSub(BaseDice):
         min_first_item = self.items[0].min()
         sum_of_max_of_others = np.sum([i.max() for i in self.items[1:]])
         min_value = min_first_item - sum_of_max_of_others
-        if self.min_value and min_value < self.min_value:
+        if self.min_value is not None and min_value < self.min_value:
             return self.min_value
         return min_value
 

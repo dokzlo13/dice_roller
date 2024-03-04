@@ -444,7 +444,7 @@ We already slipped through some basics arithmetical operations. What else we can
 
 #### Limits
 
-As you can see in basic arithmetic examles below, dice `d20-4` may outcome negative minimal value. It's because lowest result of the d20 roll is `1`, and `1-4=-3`.
+As you can see in basic arithmetic examles above, dice `d20-4` may outcome negative minimal value. It's because lowest result of the d20 roll is `1`, and `1-4=-3`.
 
 We can ensure dice outcome will be in bounds by providing limit with comparison operators overload:
 
@@ -492,7 +492,7 @@ dice_8d6 = 8@d6
 print(f"Fireball deals '{dice_8d6}' damage:")
 print(f"At least: {dice_8d6.min()}")
 print(f"At most: {dice_8d6.max()}")
-print(f"Average: {dice_8d6.average():.0f}")
+print(f"Average: {dice_8d6.histogram().mean():.0f}")
 print(f"Rolled {dice_8d6.roll():.0f}")
 ```
 
@@ -665,13 +665,13 @@ reroll_ones = (Reroll() == 1)
 d20_reroll_ones = reroll_ones(Dice(20))
 ```
 
-Also, take into account - result of `Reroll()` or `r()` is not dice itself, it is modifier wrapper. You need to apply this modifier to dice to perform rolls.
+Also, take into account - result of `Reroll()` is not dice itself, it is modifier wrapper. You need to apply this modifier to dice to perform rolls.
 
 ```python
-from dice_roller import r, d
+from dice_roller import Reroll
 
-(r() == 1).roll()  # is not okay
-(r() == 6)(some_dice).roll()  # is okay
+(Reroll() == 1).roll()  # is not okay
+(Reroll() == 6)(some_dice).roll()  # is okay
 ```
 
 By default, roll can be rerolled once, but you can override this behavior:
@@ -684,7 +684,7 @@ d = (d(20).reroll(reroll_limit=100) == 1)
 
 # For functional API
 reroll_ones = (r(reroll_limit=100) == 1)
-d20_reroll_ones_100_times_max = explode_on_6(Dice(6))
+d20_reroll_ones_100_times_max = explode_on_6(d(6))
 ```
 
 `Reroll` supports several comparison operations:
@@ -749,19 +749,19 @@ explode_on_6 = (Explode() == 6)
 d6_explode_on_6 = explode_on_6(Dice(6))
 ```
 
-Also, take into account - result of `Explode()` or `x()` is not dice itself, it is modifier wrapper. You need to apply this modifier to dice to perform rolls.
+Also, take into account - result of `Explode()` is not dice itself, it is modifier wrapper. You need to apply this modifier to dice to perform rolls.
 
 ```python
-from dice_roller import x, d
+from dice_roller import Explode
 
-(x() == 6).roll()  # is not okay
-(x() == 6)(some_dice).roll()  # is okay
+(Explode() == 6).roll()  # is not okay
+(Explode() == 6)(some_dice).roll()  # is okay
 ```
 
-By default, roll can be exploded 100 times, but you can override this behavior during constructing `Explode` instance:
+**By default, roll can be exploded 100 times**, but you can override this behavior during constructing `Explode` instance:
 
 ```python
-from dice_roller import x, Dice  # x is alias for Explode
+from dice_roller import x, d  # x is alias for Explode
 
 # dice may be exploded only 5 times sequentially on d6 roll
 # If you lucky enough, you will obtain result of `np.sum([6,6,6,6,6])`
@@ -769,7 +769,7 @@ d = (d(20).explode(explode_depth=5) == 1)
 
 # For functional API
 explode_on_6 = (x(explode_depth=5) == 6)
-d6_explode_on_6_5_times = explode_on_6(Dice(6))
+d6_explode_on_6_5_times = explode_on_6(d(6))
 ```
 
 `Explode` supports several comparison operations:
