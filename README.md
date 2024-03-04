@@ -24,7 +24,7 @@ While **`dice_roller`** offers a variety of features for dice rolling enthusiast
 - **Early Version with Limited Test Coverage**: As a small hobby project, `dice_roller` is in its early stages. This means its test coverage is not as extensive as more mature libraries.
 - **Designed for Simplicity, Not Complexity**: Our philosophy with `dice_roller` is to provide a simple, straightforward way to simulate dice rolls. Each roll is designed to have **one** outcome. If your project requires rolling pools of different dice and combining outcomes in more complex ways, `dice_roller` might not offer the flexibility you need without additional custom logic.
 - **No Dice Notation Parsing**: Unlike some other libraries, `dice_roller` focuses on using Python-based primitives for defining dice rolls rather than parsing arbitrary dice notation strings. This approach makes for a clean and intuitive API but may not suit everyone's needs, especially if you're looking for direct notation string parsing capabilities.
-- **Probability Modeling is Secondary**: Though `dice_roller` integrates with the `dyce` library for probability modeling, it's important to note that our main goal is to provide a pleasant API for rolling dice and handling common dice notations. If your primary focus is on modeling complex dice mechanics and probabilities, there are other tools specifically designed for that purpose which might better suit your needs.
+- **Probability Modeling is Secondary**: Though `dice_roller` integrates with the `dyce` library for probability modeling, it's important to note that our main goal is to provide a pleasant API and rolling dices fast with numpy. If your primary focus is on modeling complex dice mechanics and probabilities, there are other tools specifically designed for that purpose which might better suit your needs.
 
 
 ## Get Rolling
@@ -44,18 +44,19 @@ Let's roll some dice:
 ```python
 from dice_roller import Dice
 
-d20 = Dice(20) + 4
-print(f"Rolling {d20} ...")
-roll = d20.roll()
+d20 = Dice(20)
+print(f"Rolling {d20} = {d20.roll()}")
 
-print(f"Rolled {roll}")
+# Adding modifiers to dice
+d20_plus_4 = d20 + 4
+print(f"Rolling {d20_plus_4} = {d20_plus_4.roll()}")
 ```
 
 And now we have shiny new rolled dice.
 
 ```
-rolling (d20 + 4) ...
-Rolled 8
+Rolling d20 = 11
+Rolling (d20 + 4) = 7
 ```
 
 ## Highlights
@@ -66,7 +67,7 @@ from dice_roller import s, d, rng, x, r, kh, kl, dl, dh
 def roll_info(roll: BaseDice):
     print(f"For dice '{roll}' min is {roll.min()} and max is {roll.max()}")
 
-d20 = d(20)
+d20 = d(20)  # creating dice with possible outcomes 1-20
 roll_info(d20)  # For dice 'd20' min is 1 and max is 20
 d20.roll()  # Get one roll result
 d20.generate(10)  # Generates 10 rolls as numpy array
@@ -75,24 +76,33 @@ modifier = s(5)  # Scalar, `dice_roller` converts integers to Scalar automatical
 roll_info(modifier)  # For dice '5' min is 5 and max is 5
 roll_info(d20 + modifier)  # For dice '(d20 + 5)' min is 6 and max is 25
 
-# Some code
+fudge_dice = rng(-1, 2)  # Creating custom range dice
+roll_info(fudge_dice)  # For dice 'rng(-1,2)' min is -1 and max is 1
+fudge_dice.generate(5*3).reshape((5, 3))  # rolling a pool of dices and reshape outcome with numpy tools
+# array([[-1, -1,  0],
+#        [-1,  1, -1],
+#        [-1,  1,  0],
+#        [ 0,  0,  0],
+#        [-1, -1,  0]])
+
 attack_roll = kh(2@d20) + d(4) + 3  # Roll to hit with advantage, use bless (+d4) and add +3 modifier
 roll_info(attack_roll)  # For dice '(2d20kh + d4 + 3)' min is 5 and max is 27
 attack_results = attack_roll.generate(10_000)  # Generates 10000 rolls
-hit_ac = attack_results[attack_results >= 16]  # numpy stuff
+hit_ac = attack_results[attack_results >= 16]  # Checking hits with numpy masks
 
-damage_roll = 2@(d(6).x == 6) + 5  # Roll 2d6 (explode on 6), add 5. Explode max 100 times (default)
-roll_info(damage_roll)  # For dice '(2d6x6 + 5)' min is 7 and max is 1205
+damage_roll = (d(6).x == 6)  # Roll d6 (explode on 6). Explode max 100 times (default)
+roll_info(damage_roll)  # For dice 'd6x6' min is 1 and max is 600
+explode_on_six = (x() == 6)  # Functional API for explode
+roll_info(explode_on_six(d(6)))  # For dice 'd6x6' min is 1 and max is 600
 
-reroll_ones = (r(reroll_limit=1) == 1)  # Create reroll ones modifier (max 1 reroll)
-skill_check_roll = reroll_ones(d20) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4
-skill_check_roll = (d20.r == 1) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4 - another approach
-roll_info(skill_check_roll)  # For dice '(d20r1 + 4)' min is 5 and max is 24
-kl(2@skill_check_roll).roll()  # roll skill check roll with disadvantage
+d20_with_luck = (d20.r == 1) # Roll d20 and reroll ones. Reroll once (default)
+roll_info(d20_with_luck)  # For dice 'd20r1' min is 1 and max is 20
+reroll_ones = (r() == 1)  # Functional API for explode
+d20_with_luck_plus_4 = reroll_ones(d20) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4
+kl(2@d20_with_luck_plus_4).roll()  # roll 2 rolls, keeping one lowest result
 
 # More examples
-fudge_dice = rng(-1, 2)                 # fudge dice
-4@fudge_dice                            # roll 4 fudge dices, add results together
+(4@fudge_dice)                          # roll 4 fudge dices, add results together
 (d20 - 4) >= 1                          # roll d20-4, ensure result greater or equal to 1
 d20 * 2 + d(2) - 1                      # roll d20, multiply by 2, add d2, sub 1
 dh(10@d20, drop=5)                      # roll 10 d20, drop 5 highest and return sum of rest 
@@ -365,13 +375,13 @@ Let's compare execution time:
 ```python
 r = kh(2 @ d(20)) + d(4) + 5
 
-%timeit r.generate(1_000_000)
-%timeit r.histogram()
+%timeit np.mean(r.generate(1_000_000))
+%timeit r.histogram().mean()
 ```
 
 ```
-2.27 s ± 18.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-1.01 ms ± 6.98 µs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
+2.27 s ± 19.6 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+1 ms ± 2.32 µs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
 ```
 
 Running the simulation takes a good couple of seconds, while the histogram method is lightning fast. So, if you're looking for quick and reliable dice roll insights, the histogram way is a no-brainer.
@@ -413,10 +423,10 @@ roll_info(fudge)  # For dice 'rng(-1,2)' min is -1 and max is 1
 
 ```
 
-You can also provide step value during dice creation:
+You can also provide step value for rng dice:
 
 ```python
-even_only_dice = RangeDice(2, 11, 2)  # [2, 4, 6, 8, 10]
+even_only_dice = RangeDice(2, 11, 2)  # tuple(range(2,11,2)) == (2, 4, 6, 8, 10)
 roll_info(even_only_dice)  # For dice 'rng(2,11,2)' min is 2 and max is 10
 ```
 

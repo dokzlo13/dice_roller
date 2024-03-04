@@ -33,7 +33,6 @@ class DiceAdd(BaseDice):
 @dataclass(slots=True)
 class DiceSub(BaseDice):
     items: tuple[BaseDice, ...]
-    min_value: None | int = field(default=None)
 
     def histogram(self) -> H:
         result = self.items[0].histogram()
@@ -55,16 +54,12 @@ class DiceSub(BaseDice):
         min_first_item = self.items[0].min()
         sum_of_max_of_others = np.sum([i.max() for i in self.items[1:]])
         min_value = min_first_item - sum_of_max_of_others
-        if self.min_value is not None and min_value < self.min_value:
-            return self.min_value
         return min_value
 
     def generate(self, items: int) -> ArrayLike:
         result = self.items[0].generate(items)
         for item in self.items[1:]:
             result -= item.generate(items)  # type: ignore
-            if self.min_value is not None:
-                result = np.maximum(self.min_value, result)  # Ensure all values are > 0
         return result
 
 
