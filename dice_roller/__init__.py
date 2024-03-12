@@ -1,6 +1,6 @@
 from . import random
 from .callback import WithGenerateCallback, WithRollCallback
-from .compare import Ge, Gt, Le, Lt
+from .compare import Ge, Gt, Le, Lt, Limit
 from .core import (
     BaseDice,
     Dice,
@@ -27,3 +27,4 @@ dl = DropLowest
 x = Explode
 r = Reroll
 rng = RangeDice
+lim = Limit

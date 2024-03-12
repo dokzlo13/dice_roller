@@ -62,57 +62,71 @@ Rolling (d20 + 4) = 7
 ## Highlights
 
 ```python
-from dice_roller import s, d, rng, x, r, kh, kl, dl, dh
+from dice_roller import s, d, rng
 
 def roll_info(roll: BaseDice):
     print(f"For dice '{roll}' min is {roll.min()} and max is {roll.max()}")
 
-d20 = d(20)  # creating dice with possible outcomes 1-20
-roll_info(d20)  # For dice 'd20' min is 1 and max is 20
-d20.roll()  # Get one roll result
-d20.generate(10)  # Generates 10 rolls as numpy array
+d20 = d(20)                                    # creating dice with possible outcomes 1-20
+roll_info(d20)                                 # For dice 'd20' min is 1 and max is 20
+d20.roll()                                     # Get one roll result
+d20.generate(10)                               # Generates 10 rolls as numpy array
+roll_info(d20 + 5)                             # For dice '(d20 + 5)' min is 6 and max is 25
 
-modifier = s(5)  # Scalar, `dice_roller` converts integers to Scalar automatically, if you use suggested mathematical api.
-roll_info(modifier)  # For dice '5' min is 5 and max is 5
-roll_info(d20 + modifier)  # For dice '(d20 + 5)' min is 6 and max is 25
-
-fudge_dice = rng(-1, 2)  # Creating custom range dice
-roll_info(fudge_dice)  # For dice 'rng(-1,2)' min is -1 and max is 1
-fudge_dice.generate(5*3).reshape((5, 3))  # rolling a pool of dices and reshape outcome with numpy tools
+fudge_dice = rng(-1, 2)                        # Creating custom range dice
+roll_info(fudge_dice)                          # For dice 'rng(-1,2)' min is -1 and max is 1
+fudge_dice.generate(5*3).reshape((5, 3))       # rolling a pool of dices and reshape outcome with numpy tools
 # array([[-1, -1,  0],
 #        [-1,  1, -1],
 #        [-1,  1,  0],
 #        [ 0,  0,  0],
 #        [-1, -1,  0]])
 
-attack_roll = kh(2@d20) + d(4) + 3  # Roll to hit with advantage, use bless (+d4) and add +3 modifier
-roll_info(attack_roll)  # For dice '(2d20kh + d4 + 3)' min is 5 and max is 27
+advantage_roll = (2@d20).kh()                  # Keep Highest of 2 dices
+disadvantage_roll = (2@d20).kl()               # Keep Lowest of 2 dices
+
+attack_roll = (2@d20).kh() + d(4) + 3          # Roll to hit with advantage, use bless (+d4) and add +3 modifier
+roll_info(attack_roll)                         # For dice '(2d20kh + d4 + 3)' min is 5 and max is 27
 attack_results = attack_roll.generate(10_000)  # Generates 10000 rolls
 hit_ac = attack_results[attack_results >= 16]  # Checking hits with numpy masks
 
-damage_roll = (d(6).x == 6)  # Roll d6 (explode on 6). Explode max 100 times (default)
-roll_info(damage_roll)  # For dice 'd6x6' min is 1 and max is 600
-explode_on_six = (x() == 6)  # Functional API for explode
-roll_info(explode_on_six(d(6)))  # For dice 'd6x6' min is 1 and max is 600
+damage_roll = (d(6).x == 6)                    # Roll d6 (explode on 6). Explode max 100 times (default)
+roll_info(damage_roll)                         # For dice 'd6x6' min is 1 and max is 600
 
-d20_with_luck = (d20.r == 1) # Roll d20 and reroll ones. Reroll once (default)
-roll_info(d20_with_luck)  # For dice 'd20r1' min is 1 and max is 20
-reroll_ones = (r() == 1)  # Functional API for explode
-d20_with_luck_plus_4 = reroll_ones(d20) + 4  # Roll d20 and reroll ones (max 1 reroll), add 4
-kl(2@d20_with_luck_plus_4).roll()  # roll 2 rolls, keeping one lowest result
+d20_luck = (d20.r == 1)                        # Roll d20 and reroll ones. Reroll once (default)
+roll_info(d20_luck)                            # For dice 'd20r1' min is 1 and max is 20
 
-# More examples
-(4@fudge_dice)                          # roll 4 fudge dices, add results together
-(d20 - 4) >= 1                          # roll d20-4, ensure result greater or equal to 1
-d20 * 2 + d(2) - 1                      # roll d20, multiply by 2, add d2, sub 1
-dh(10@d20, drop=5)                      # roll 10 d20, drop 5 highest and return sum of rest 
-kh(5@d20, keep=d(2))                    # roll 5 d20, keep d2 (new reroll value each time) highest and return their sum 
-d(6).r == rng(1, 3)                     # roll d6, rerolls on 1 or 2 (new reroll value each time), 1 reroll max (default)
-d(20).reroll(reroll_limit=10) == 1      # roll d20, rerolls on 1, max 10 rerolls
-d(6).x >= 5                             # roll d6, explodes on 5 and 6. Maximum 100 explodes (default)
-d(6).explode(explode_depth=2) > 4       # roll d6, explodes on 5 and 6. Maximum 2 explodes
-(10@d(10)) * (10@d(10))                 # roll 2 sets of 10d10 and multiply results
-(4 @ d(4)) @ d(10)                      # roll 4d4 of d10 dices
+debuff_roll = (d20 - 4) >= 1                   # Limiting your roll outcomes
+roll_info(debuff_roll)                         # For dice '(d20 - 4)>=1' min is 1 and max is 16
+
+# Let's use some functional api
+from dice_roller import x, r, kh, kl, dl, dh, lim
+
+kh(2@d(20))                                    # Keep Highest of 2 dices
+kl(2@d(20))                                    # Keep Lowest of 2 dices
+dh(10@d20, drop=5)                             # roll 10 d20, drop 5 highest and return sum of rest 
+kh(5@d20, keep=d(2))                           # roll 5 d20, keep d2 (new reroll value each time) highest and return their sum 
+
+explode_on_six = (x() == 6)                    # Explode on 6, max 100 times (default)
+explode_on_six = (x(explode_depth=10) == 6)    # Explode on 6, max 10 times
+roll_info(explode_on_six(d(6)))                # For dice 'd6x6' min is 1 and max is 600
+
+reroll_ones = (r() == 1)                       # reroll ones, 1 reroll max (default)
+reroll_ones = (r(reroll_limit=10) == 1)        # reroll ones, 100 reroll max
+d20_luck = reroll_ones(d20)                    # roll d20 and
+kl((2@d20_luck)).roll()                        # roll 2 d20 rolls, keeping one lowest
+
+# Even more examples
+(4@fudge_dice)                                 # roll 4 fudge dices, add results together
+(d20 - d(4)) >= 1                              # roll d20-d4, ensure result greater or equal to 1
+d20 * 2 + d(2) - 1                             # roll d20, multiply by 2, add d2, sub 1
+
+d(6).r == d(2)                                 # roll d6, rerolls on 1 or 2 (new reroll value each time), 1 reroll max (default)
+d(20).reroll(reroll_limit=10) == 1             # roll d20, rerolls on 1, max 10 rerolls
+d(6).x >= rng(5, 7)                            # roll d6, explodes on 5 and 6. Maximum 100 explodes (default)
+d(6).explode(explode_depth=2) > 4              # roll d6, explodes on 5 and 6. Maximum 2 explodes
+(10@d(10)) * (10@d(10))                        # roll 2 sets of 10d10 and multiply results
+(4@d(4)) @ d(10)                               # roll 4d4 of d10 dices
 
 # roll d6 of (roll d4 of d20 dice, keep 1 highest) and drop d4 lowest. Ensure (d4 explodes on 4) <= result <= (d100 reroll <= 50).
 (dl(d(6) @ kl(d(4) @ d(20)), drop=d(4)) >= (d(4).x == 4)) <= (d(100).r <= 50)
@@ -684,7 +698,7 @@ from dice_roller import Reroll
 (Reroll() == 6)(some_dice).roll()  # is okay
 ```
 
-By default, roll can be rerolled once, but you can override this behavior:
+**By default, roll can be rerolled once**, but you can override this behavior:
 
 ```python
 from dice_roller import r, d  # r is alias for Reroll

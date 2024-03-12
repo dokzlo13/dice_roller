@@ -1,15 +1,14 @@
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Callable, Protocol
+from typing import Protocol
 
 import numpy as np
 from dyce import H
 from dyce.evaluation import HResult, expandable
 from numpy.typing import ArrayLike
 
-from .core import BaseDice, Scalar
-
-RerollDiceModifier = Callable[[BaseDice], BaseDice]
+from .core import BaseDice
+from .misc import DiceModifier, _wrap_scalar
 
 
 @dataclass(slots=True)
@@ -128,31 +127,23 @@ class RerollIfLessOrEq(BaseReroll):
         return roll_values <= cmp_values  # type: ignore
 
 
-def _wrap_scalar(value: BaseDice | int) -> BaseDice:
-    if isinstance(value, int):
-        value = Scalar(value)
-    if not isinstance(value, BaseDice):
-        raise TypeError("Reroll only support other dices or integers")
-    return value
-
-
 class Reroll:
     def __init__(self, reroll_limit: int = 1) -> None:
         self.reroll_limit = reroll_limit
 
-    def __eq__(self, value: BaseDice | int) -> RerollDiceModifier:  # type: ignore
+    def __eq__(self, value: BaseDice | int) -> DiceModifier:  # type: ignore
         return partial(RerollEq, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
 
-    def __gt__(self, value: BaseDice | int) -> RerollDiceModifier:
+    def __gt__(self, value: BaseDice | int) -> DiceModifier:
         return partial(RerollIfGreater, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
 
-    def __ge__(self, value: BaseDice | int) -> RerollDiceModifier:
+    def __ge__(self, value: BaseDice | int) -> DiceModifier:
         return partial(RerollIfGreaterOrEq, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
 
-    def __lt__(self, value: BaseDice | int) -> RerollDiceModifier:
+    def __lt__(self, value: BaseDice | int) -> DiceModifier:
         return partial(RerollIfLess, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
 
-    def __le__(self, value: BaseDice | int) -> RerollDiceModifier:
+    def __le__(self, value: BaseDice | int) -> DiceModifier:
         return partial(RerollIfLessOrEq, compare=_wrap_scalar(value), reroll_limit=self.reroll_limit)
 
 

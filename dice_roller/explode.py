@@ -1,15 +1,14 @@
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Callable, Protocol
+from typing import Protocol
 
 import numpy as np
 from dyce import H
-from dyce.evaluation import expandable, HResult
+from dyce.evaluation import HResult, expandable
 from numpy.typing import ArrayLike
 
-from .core import BaseDice, Scalar
-
-ExplodeDiceModifier = Callable[[BaseDice], BaseDice]
+from .core import BaseDice
+from .misc import DiceModifier, _wrap_scalar
 
 
 @dataclass(slots=True)
@@ -133,31 +132,23 @@ class ExplodeIfLessOrEq(BaseExplode):
         return roll_values <= cmp_values  # type: ignore
 
 
-def _wrap_scalar(value: BaseDice | int) -> BaseDice:
-    if isinstance(value, int):
-        value = Scalar(value)
-    if not isinstance(value, BaseDice):
-        raise TypeError("Explode only support other dices or integers")
-    return value
-
-
 class Explode:
     def __init__(self, explode_depth: int = 100) -> None:
         self.explode_depth = explode_depth
 
-    def __eq__(self, value: BaseDice | int) -> ExplodeDiceModifier:  # type: ignore
+    def __eq__(self, value: BaseDice | int) -> DiceModifier:  # type: ignore
         return partial(ExplodeEq, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
 
-    def __gt__(self, value: BaseDice | int) -> ExplodeDiceModifier:
+    def __gt__(self, value: BaseDice | int) -> DiceModifier:
         return partial(ExplodeIfGreater, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
 
-    def __ge__(self, value: BaseDice | int) -> ExplodeDiceModifier:
+    def __ge__(self, value: BaseDice | int) -> DiceModifier:
         return partial(ExplodeIfGreaterOrEq, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
 
-    def __lt__(self, value: BaseDice | int) -> ExplodeDiceModifier:
+    def __lt__(self, value: BaseDice | int) -> DiceModifier:
         return partial(ExplodeIfLess, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
 
-    def __le__(self, value: BaseDice | int) -> ExplodeDiceModifier:
+    def __le__(self, value: BaseDice | int) -> DiceModifier:
         return partial(ExplodeIfLessOrEq, compare=_wrap_scalar(value), explode_depth=self.explode_depth)
 
 

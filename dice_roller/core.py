@@ -28,7 +28,32 @@ class BaseDice(Protocol):
 
     def histogram(self) -> H: ...
 
-    # Interface end
+    # Base roll
+
+    def roll(self) -> int:
+        return np.sum(self.generate(1))
+
+    # Modifiers
+
+    def kh(self, keep: BaseDice | int = 1) -> BaseDice:
+        from .transformations import KeepHighest
+
+        return KeepHighest(self, keep=keep)  # type: ignore
+
+    def kl(self, keep: BaseDice | int = 1) -> BaseDice:
+        from .transformations import KeepLowest
+
+        return KeepLowest(self, keep=keep)  # type: ignore
+
+    def dh(self, drop: BaseDice | int = 1) -> BaseDice:
+        from .transformations import DropHighest
+
+        return DropHighest(self, drop=drop)  # type: ignore
+
+    def dl(self, drop: BaseDice | int = 1) -> BaseDice:
+        from .transformations import DropLowest
+
+        return DropLowest(self, drop=drop)  # type: ignore
 
     @property
     def r(self):
@@ -48,8 +73,7 @@ class BaseDice(Protocol):
 
         return _ExplodeFactory(dice=self, explode_depth=explode_depth)
 
-    def roll(self) -> int:
-        return np.sum(self.generate(1))
+    # Magic
 
     def __matmul__(self, other):
         if isinstance(other, int):

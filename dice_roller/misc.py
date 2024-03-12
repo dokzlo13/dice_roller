@@ -1,18 +1,13 @@
-class SingletonMeta(type):
-    """
-    The Singleton class can be implemented in different ways in Python. Some
-    possible methods include: base class, decorator, metaclass. We will use the
-    metaclass because it is best suited for this purpose.
-    """
+from .core import BaseDice, Scalar
+from typing import Callable
 
-    _instances = {}  # type: ignore
 
-    def __call__(cls, *args, **kwargs):
-        """
-        Possible changes to the value of the `__init__` argument do not affect
-        the returned instance.
-        """
-        if cls not in cls._instances:
-            instance = super().__call__(*args, **kwargs)
-            cls._instances[cls] = instance
-        return cls._instances[cls]
+def _wrap_scalar(value: BaseDice | int) -> BaseDice:
+    if isinstance(value, int):
+        value = Scalar(value)
+    if not isinstance(value, BaseDice):
+        raise TypeError("Reroll only support other dices or integers")
+    return value
+
+
+DiceModifier = Callable[[BaseDice], BaseDice]
