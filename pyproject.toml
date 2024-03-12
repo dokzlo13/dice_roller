@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pydiceroll"
-version = "0.2.0"
+version = "0.3.0"
 description = "Python tool for rolling a lot of dice"
 authors = ["Aleksei Zakharov <dokzlo13@gmail.com>"]
 license = "MIT"
