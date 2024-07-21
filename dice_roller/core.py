@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Protocol, runtime_checkable
+from operator import add
+from typing import Callable, Protocol, runtime_checkable
 
 import numpy as np
 from dyce import H
@@ -72,6 +73,15 @@ class BaseDice(Protocol):
         from .explode import _ExplodeFactory
 
         return _ExplodeFactory(dice=self, explode_depth=explode_depth)
+
+    @property
+    def lim(self):
+        return self.limit()
+
+    def limit(self):
+        from .compare import _LimitFactory
+
+        return _LimitFactory(dice=self)
 
     # Magic
 
@@ -183,46 +193,6 @@ class BaseDice(Protocol):
     __floordiv__ = __truediv__  # type: ignore
     __rfloordiv__ = __rtruediv__  # type: ignore
 
-    def __ge__(self, other):
-        if isinstance(other, int):
-            other = Scalar(other)
-        if not isinstance(other, BaseDice):
-            raise TypeError("Can only div other dices or integers")
-
-        from .compare import Ge
-
-        return Ge(dice=self, compare=other)  # type: ignore
-
-    def __gt__(self, other):
-        if isinstance(other, int):
-            other = Scalar(other)
-        if not isinstance(other, BaseDice):
-            raise TypeError("Can only div other dices or integers")
-
-        from .compare import Gt
-
-        return Gt(dice=self, compare=other)  # type: ignore
-
-    def __le__(self, other):
-        if isinstance(other, int):
-            other = Scalar(other)
-        if not isinstance(other, BaseDice):
-            raise TypeError("Can only div other dices or integers")
-
-        from .compare import Le
-
-        return Le(dice=self, compare=other)  # type: ignore
-
-    def __lt__(self, other):
-        if isinstance(other, int):
-            other = Scalar(other)
-        if not isinstance(other, BaseDice):
-            raise TypeError("Can only div other dices or integers")
-
-        from .compare import Lt
-
-        return Lt(dice=self, compare=other)  # type: ignore
-
 
 @dataclass(slots=True)
 class Scalar(BaseDice):
@@ -303,6 +273,8 @@ class RangeDice(BaseDice):
 class DiceMany(BaseDice):
     total: BaseDice
     dice: BaseDice
+    _operator: Callable[[ArrayLike, ArrayLike], ArrayLike] = add
+    _neutral_element: int = 0
 
     def histogram(self) -> H:
         many = expandable(lambda total, dice: total.outcome @ dice.h)
@@ -320,7 +292,7 @@ class DiceMany(BaseDice):
     def generate(self, items: int) -> ArrayLike:
         total_rolls = self.total.generate(items)
         max_rolls = np.max(total_rolls)
-        result = np.zeros(items, dtype=np.int_)
+        result = np.full(items, self._neutral_element, dtype=np.int_)
 
         for roll_count in range(1, max_rolls + 1):
             mask = total_rolls >= roll_count  # type: ignore
@@ -329,6 +301,24 @@ class DiceMany(BaseDice):
             if num_items_this_round == 0:
                 break
             # Generate and sum the dice rolls for items requiring them
-            result[mask] += self.dice.generate(num_items_this_round)  # type: ignore
+            result[mask] = self._operator(result[mask], self.dice.generate(num_items_this_round))
 
         return result
+
+
+def many(
+    total: int | BaseDice,
+    dice: int | BaseDice,
+    *,
+    operator: Callable[[ArrayLike, ArrayLike], ArrayLike] = add,
+    neutral_element: int = 0,
+):
+    if isinstance(total, int):
+        total = Scalar(total)
+    if not isinstance(total, BaseDice):
+        raise ValueError(f"'total' suppose to be int or BaseDice, not {type(total)}")
+    if isinstance(dice, int):
+        dice = Scalar(dice)
+    if not isinstance(dice, BaseDice):
+        raise ValueError(f"'dice' suppose to be int or BaseDice, not {type(dice)}")
+    return DiceMany(total, dice, _operator=operator, _neutral_element=neutral_element)

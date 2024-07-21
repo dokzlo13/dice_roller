@@ -88,7 +88,7 @@ disadvantage_roll = (2@d20).kl()               # Keep Lowest of 2 dices
 attack_roll = (2@d20).kh() + d(4) + 3          # Roll to hit with advantage, use bless (+d4) and add +3 modifier
 roll_info(attack_roll)                         # For dice '(2d20kh + d4 + 3)' min is 5 and max is 27
 attack_results = attack_roll.generate(10_000)  # Generates 10000 rolls
-hit_ac = attack_results[attack_results >= 16]  # Checking hits with numpy masks
+hits_ac = attack_results[attack_results >= 16]  # Checking hits with numpy masks
 
 damage_roll = (d(6).x == 6)                    # Roll d6 (explode on 6). Explode max 100 times (default)
 roll_info(damage_roll)                         # For dice 'd6x6' min is 1 and max is 600
@@ -96,35 +96,43 @@ roll_info(damage_roll)                         # For dice 'd6x6' min is 1 and ma
 d20_luck = (d20.r == 1)                        # Roll d20 and reroll ones. Reroll once (default)
 roll_info(d20_luck)                            # For dice 'd20r1' min is 1 and max is 20
 
-debuff_roll = (d20 - 4) >= 1                   # Limiting your roll outcomes
-roll_info(debuff_roll)                         # For dice '(d20 - 4)>=1' min is 1 and max is 16
+debuff_roll = (d20 - 4).lim > 0                # Limiting your roll outcomes
+roll_info(debuff_roll)                         # For dice '(d20 - 4)>0' min is 1 and max is 16
+```
 
+### More examples
+
+```python
 # Let's use some functional api
 from dice_roller import x, r, kh, kl, dl, dh, lim
 
 kh(2@d(20))                                    # Keep Highest of 2 dices
 kl(2@d(20))                                    # Keep Lowest of 2 dices
+dh(2@d(20))                                    # Drop Highest of 2 dices
+dl(2@d(20))                                    # Drop Lowest of 2 dices
 dh(10@d20, drop=5)                             # roll 10 d20, drop 5 highest and return sum of rest 
-kh(5@d20, keep=d(2))                           # roll 5 d20, keep d2 (new reroll value each time) highest and return their sum 
+kh(5@d20, keep=d(3))                           # roll 5 d20, keep d3 (new keep value each time) highest and return their sum 
 
 explode_on_six = (x() == 6)                    # Explode on 6, max 100 times (default)
 explode_on_six = (x(explode_depth=10) == 6)    # Explode on 6, max 10 times
 roll_info(explode_on_six(d(6)))                # For dice 'd6x6' min is 1 and max is 600
 
 reroll_ones = (r() == 1)                       # reroll ones, 1 reroll max (default)
-reroll_ones = (r(reroll_limit=10) == 1)        # reroll ones, 100 reroll max
-d20_luck = reroll_ones(d20)                    # roll d20 and
+reroll_ones = (r(reroll_limit=10) == 1)        # reroll ones, 10 reroll max
+d20_luck = reroll_ones(d20)                    # roll d20 and reroll ones
 kl((2@d20_luck)).roll()                        # roll 2 d20 rolls, keeping one lowest
 
-# Even more examples
-(4@fudge_dice)                                 # roll 4 fudge dices, add results together
-(d20 - d(4)) >= 1                              # roll d20-d4, ensure result greater or equal to 1
-d20 * 2 + d(2) - 1                             # roll d20, multiply by 2, add d2, sub 1
+gt_0 = lim() > 0                               # Creating limit modifier to ensure roll result > 0
+gt_0(d(20) - 5)                                # Roll d20, subtract 5, ensure result is > 0
 
+# Even more complex stuff below
+(4@fudge_dice)                                 # roll 4 fudge dices, add results together
+(d20 - d(4)).lim >= 1                          # roll d20-d4, ensure result greater or equal to 1
+d20 * 2 + d(2) - 1                             # roll d20, multiply by 2, add d2, sub 1
 d(6).r == d(2)                                 # roll d6, rerolls on 1 or 2 (new reroll value each time), 1 reroll max (default)
 d(20).reroll(reroll_limit=10) == 1             # roll d20, rerolls on 1, max 10 rerolls
 d(6).x >= rng(5, 7)                            # roll d6, explodes on 5 and 6. Maximum 100 explodes (default)
-d(6).explode(explode_depth=2) > 4              # roll d6, explodes on 5 and 6. Maximum 2 explodes
+d(6).explode(explode_depth=2).lim > 4          # roll d6, explodes on 5 and 6. Maximum 2 explodes and minimal outcome is 5
 (10@d(10)) * (10@d(10))                        # roll 2 sets of 10d10 and multiply results
 (4@d(4)) @ d(10)                               # roll 4d4 of d10 dices
 
@@ -473,11 +481,15 @@ As you can see in basic arithmetic examles above, dice `d20-4` may outcome negat
 We can ensure dice outcome will be in bounds by providing limit with comparison operators overload:
 
 ```python
-from dice_roller import Dice
+from dice_roller import Dice, Limit
 d20 = Dice(20)
 
-safe_roll = (d20 - 4) >= 1 # roll of the (d20 - 4) must be greater or equal to 1
-roll_info(safe_roll)  # For dice '(d20 - 4)>=1' min is 1 and max is 16
+safe_roll = (d20 - 4).lim >= 1   # roll of the (d20 - 4) must be greater or equal to 1
+roll_info(safe_roll)         # For dice '(d20 - 4)>=1' min is 1 and max is 16
+
+limit_gt0 = Limit() > 0     # Creating modifier, using functional API
+safe_roll = limit_gt0(d20)  # Apply modifier
+roll_info(safe_roll)         # For dice '(d20 - 4)>0' min is 1 and max is 16
 ```
 
 `dice_roller` support different types of limits:
@@ -486,17 +498,53 @@ roll_info(safe_roll)  # For dice '(d20 - 4)>=1' min is 1 and max is 16
 from dice_roller import d
 d20 = d(20)
 
-d20 >= 19    # greater or equal to 19
-d20 > 19     # greater then 19
-d20 <= 2     # less or equal to 2
-d20 < 2      # less then 2
+d20.lim >= 19    # greater or equal to 19
+d20.lim > 19     # greater then 19
+d20.lim <= 2     # less or equal to 2
+d20.lim < 2      # less then 2
 
 # You can also use dices to construct limit, compared dice will be rolled first. New value will be rolled each time.
-d20 >= d(4)  # d20 greater or equal to value of d4
-d20 <= d(4)  # d20 less or equal to value of d4
+d20.lim >= d(4)  # d20 greater or equal to value of d4
+d20.lim <= d(4)  # d20 less or equal to value of d4
 ```
 
 As you see, here is no `==` operator supported. This has no sense - in case of `==`, any roll can be replaced with `Scalar`, and you should do this instead.
+
+Same limits can be applied, using functional API:
+
+```python
+from dice_roller import d, lim  # lim is alias for Limit
+
+dice_mod = (lim() >= 19)    # greater or equal to 19
+dice_mod = (lim() > 19)     # greater then 19
+dice_mod = (lim() <= 2)     # less or equal to 2
+dice_mod = (lim() < 2)      # less then 2
+dice_mod = (lim() >= d(4))  # greater or equal to value of d4
+dice_mod = (lim() <= d(4))  # less or equal to value of d4
+
+limited_dice = dice_mod(d(20))
+```
+
+Also, take into account - result of `Limit()` is not dice itself, it is modifier wrapper. You need to apply this modifier to dice to perform rolls.
+
+```python
+from dice_roller import Limit
+
+(Limit() > 1).roll()  # is not okay
+(Limit() > 1)(some_dice).roll()  # is okay
+```
+
+Be careful with limits, because they always override outcome value of the roll. This may affect your scalars. Example:
+
+```python
+from dice_roller import s
+
+scalar = s(5)
+scalar.max(), scalar.min()  # (5, 5)
+
+modified_scalar = s.lim > 6
+modified_scalar.max(), modified_scalar.min()  # (7, 7)
+```
 
 #### Multiple Dices
 
@@ -547,6 +595,14 @@ This modifier causes the `dice_roller` to keep and add together a number of dice
 Let's simulate D&D 5e "Advantage"
 
 ```python
+from dice_roller import Dice
+
+d20advantage = (2@Dice(20)).kh()  # by default, selects 1 highest dice of 2 dice rolled.
+```
+
+Or with functional API:
+
+```python
 from dice_roller import Dice, KeepHighest
 
 d20advantage = KeepHighest(2@Dice(20))  # by default, selects 1 highest dice of 2 dice rolled.
@@ -557,9 +613,10 @@ Using `KeepHighest` will have sense only when you use it with multiple dices, cr
 You can override amount of tries and amount of rolls, which will be added in final roll:
 
 ```python
-from dice_roller import Dice, kh  # kh is alias for KeepHighest
+from dice_roller import d, kh  # kh is alias for KeepHighest
 
-d20_keep_2_high_of_5 = kh(5@Dice(20), keep=2)  # Keeps and add together 2 highest rolls of 5 rolled
+d20_keep_2_high_of_5 = (5@d(20)).kh(keep=2)  # Keeps and add together 2 highest rolls of 5 rolled
+d20_keep_2_high_of_5 = kh(5@d(20), keep=2)  # Same, but with functional API
 ```
 
 You can use complex dice expressions with KeepHighest, `keep` field also supports `BaseDice` object:
@@ -567,9 +624,14 @@ You can use complex dice expressions with KeepHighest, `keep` field also support
 ```python
 from dice_roller import d, kh
 
-kh(4 @ d(20), keep=d(4))  # roll 4d20, keep d4 highest
-kh(d(4) @ d(20), keep=(d(4) / 2) >= 1)  # roll d4 of d20 dice, keep d4/2 (at least one) highest
-kh(d(6) @ kh(d(4) @ d(20)), keep=d(4))  # roll d6 of (roll d4 of d20 dice, keep 1 highest) and keep d4 highest
+(4 @ d(20)).kh(keep=d(4))                # roll 4d20, keep d4 highest
+(4 @ d(20)).kh(keep=(d(4) / 2) >= 1)     # roll 4d20, keep d4 highest
+(d(6) @ (d(4) @ d(20)).kh(keep=d(4)))    # roll d6 of (roll d4 of d20 dice, keep 1 highest) and keep d4 highest
+
+# Functional API
+kh(4 @ d(20), keep=d(4))                 # roll 4d20, keep d4 highest
+kh(d(4) @ d(20), keep=(d(4) / 2) >= 1)   # roll d4 of d20 dice, keep d4/2 (at least one) highest
+kh(d(6) @ kh(d(4) @ d(20)), keep=d(4))   # roll d6 of (roll d4 of d20 dice, keep 1 highest) and keep d4 highest
 ```
 
 #### Keep Lowest
@@ -577,6 +639,14 @@ kh(d(6) @ kh(d(4) @ d(20)), keep=d(4))  # roll d6 of (roll d4 of d20 dice, keep 
 This modifier causes the `dice_roller` to keep and add together a number of dice you specify, selecting the lowest of the roll results available. Without a specified args it will keep the single lowest roll. If the number of dice to roll (`of`) is less than the number of dice being kept (`keep`) then it will keep all the rolls made.
 
 Let's simulate D&D 5e "Disadvantage"
+
+```python
+from dice_roller import Dice
+
+d20disadvantage = (2@Dice(20)).kl()  # by default, selects 1 lowest dice of 2 dice rolled.
+```
+
+Or with functional API:
 
 ```python
 from dice_roller import Dice, KeepLowest
@@ -591,7 +661,8 @@ You can override amount of tries and amount of rolls, which will be added in fin
 ```python
 from dice_roller import Dice, kl  # kl is alias for KeepLowest
 
-d20_keep_2_low_of_5 = kl(5@Dice(20), keep=2)  # Keeps and add together 2 lowest rolls of 5 rolled
+d20_keep_2_low_of_5 = (5@Dice(20)).kl(keep=2)  # Keeps and add together 2 lowest rolls of 5 rolled
+d20_keep_2_low_of_5 = kl(5@Dice(20), keep=2)  # Same, but with functional API
 ```
 
 You can use complex dice expressions with KeepLowest, `keep` field also supports `BaseDice` object:
@@ -599,7 +670,12 @@ You can use complex dice expressions with KeepLowest, `keep` field also supports
 ```python
 from dice_roller import d, kl
 
-kl(4 @ d(20), keep=d(4))  # roll 4d20, keep d4 lowest
+(4 @ d(20)).kl(keep=d(4))                # roll 4d20, keep d4 highest
+(4 @ d(20)).kl(keep=(d(4) / 2) >= 1)     # roll 4d20, keep d4 highest
+(d(6) @ (d(4) @ d(20)).kl(keep=d(4)))    # roll d6 of (roll d4 of d20 dice, keep 1 highest) and keep d4 highest
+
+# Functional API
+kl(4 @ d(20), keep=d(4))                # roll 4d20, keep d4 lowest
 kl(d(4) @ d(20), keep=(d(4) / 2) >= 1)  # roll d4 of d20 dice, keep d4/2 (at least one) lowest
 kl(d(6) @ kl(d(4) @ d(20)), keep=d(4))  # roll d6 of (roll d4 of d20 dice, keep 1 lowest) and keep d4 lowest
 ```
@@ -609,6 +685,14 @@ kl(d(6) @ kl(d(4) @ d(20)), keep=d(4))  # roll d6 of (roll d4 of d20 dice, keep 
 This modifier causes the `dice_roller` to drop a number of dice you specify, selecting the highest of the roll results available. Rest of the rolls added together. If no args specified, then it will drop the one highest number rolled. If the number of dice to roll (`of`) is less than the number of dice to drop (`drop`), then it will keep all the rolls made.
 
 We can also simulate D&D 5e "Disadvantage" mechanic with this modifier:
+
+```python
+from dice_roller import Dice
+
+d20disadvantage = (2@Dice(20)).dh()  # by default, selects 1 lowest dice of 2 dice rolled.
+```
+
+Or with functional API:
 
 ```python
 from dice_roller import Dice, DropHighest
@@ -623,15 +707,20 @@ You can override amount of tries and amount of rolls, which will dropped from fi
 ```python
 from dice_roller import Dice, dh  # dh is alias for DropHighest
 
-d20_drop_high_2of5 = dh(5@Dice(20), drop=2)  # Drop 2 highest rolls and add together rest of 5 rolled
+d20_drop_high_2of5 = (5@Dice(20)).dh(drop=2)  # Drop 2 highest rolls and add together rest of 5 rolled
+d20_drop_high_2of5 = dh(5@Dice(20), drop=2)  # Same, but with functional API
 ```
 
 You can use complex dice expressions with DropHighest, `drop` field also supports `BaseDice` object:
 
 ```python
 from dice_roller import d, dh
+(4 @ d(20)).dh(keep=d(4))               # roll 4d20, drop d4 highest
+(4 @ d(20)).dh(keep=(d(4) / 2) >= 1)    # roll d4 of d20 dice, drop d4/2 (at least one) highest
+(d(6) @ (d(4) @ d(20)).dh(keep=d(4)))   # roll d6 of (roll d4 of d20 dice, drop 1 highest) and drop d4 highest
 
-dh(4 @ d(20), drop=d(4))  # roll 4d20, drop d4 highest
+# Functional API
+dh(4 @ d(20), drop=d(4))                # roll 4d20, drop d4 highest
 dh(d(4) @ d(20), drop=(d(4) / 2) >= 1)  # roll d4 of d20 dice, drop d4/2 (at least one) highest
 dh(d(6) @ dh(d(4) @ d(20)), drop=d(4))  # roll d6 of (roll d4 of d20 dice, drop 1 highest) and drop d4 highest
 ```
@@ -641,6 +730,14 @@ dh(d(6) @ dh(d(4) @ d(20)), drop=d(4))  # roll d6 of (roll d4 of d20 dice, drop 
 This modifier causes the `dice_roller` to drop a number of dice you specify, selecting the lowest of the roll results available. Rest of the rolls added together. If no args specified, then it will drop the one lowest number rolled. If the number of dice to roll (`of`) is less than the number of dice to drop (`drop`), then it will keep all the rolls made.
 
 We can simulate D&D 5e  "Advantage" mechanic with this modifier:
+
+```python
+from dice_roller import Dice
+
+d20advantage = (2@Dice(20)).dl()  # by default, selects 1 lowest dice of 2 dice rolled.
+```
+
+Or with functional API:
 
 ```python
 from dice_roller import Dice, DropLowest
@@ -655,7 +752,8 @@ You can override amount of tries and amount of rolls, which will dropped from fi
 ```python
 from dice_roller import Dice, dl  # dl is alias for DropLowest
 
-d20_drop_low_2of5 = dl(5@Dice(20), drop=2)  # Drop 2 lowest rolls and add together rest of 5 rolled
+d20_drop_high_2of5 = (5@Dice(20)).dl(drop=2)  # Drop 2 lowest rolls and add together rest of 5 rolled
+d20_drop_high_2of5 = dh(5@Dice(20), drop=2)  # Same, but with functional API
 ```
 
 You can use complex dice expressions with DropLowest, `drop` field also supports `BaseDice` object:

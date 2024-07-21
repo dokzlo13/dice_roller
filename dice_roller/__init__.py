@@ -1,13 +1,7 @@
 from . import random
 from .callback import WithGenerateCallback, WithRollCallback
-from .compare import Ge, Gt, Le, Lt, Limit
-from .core import (
-    BaseDice,
-    Dice,
-    DiceMany,
-    RangeDice,
-    Scalar,
-)
+from .compare import Ge, Gt, Le, Limit, Lt
+from .core import BaseDice, Dice, DiceMany, RangeDice, Scalar, many
 from .explode import Explode
 from .math import (
     DiceAdd,

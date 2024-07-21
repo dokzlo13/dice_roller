@@ -141,3 +141,20 @@ class Limit:
 
     def __le__(self, value: BaseDice | int) -> DiceModifier:
         return partial(Le, compare=_wrap_scalar(value))
+
+
+class _LimitFactory:
+    def __init__(self, dice: BaseDice) -> None:
+        self.dice = dice
+
+    def __gt__(self, value: BaseDice | int) -> BaseCompare:
+        return Gt(dice=self.dice, compare=_wrap_scalar(value))  # type: ignore
+
+    def __ge__(self, value: BaseDice | int) -> DiceModifier:
+        return Ge(dice=self.dice, compare=_wrap_scalar(value))  # type: ignore
+
+    def __lt__(self, value: BaseDice | int) -> DiceModifier:
+        return Lt(dice=self.dice, compare=_wrap_scalar(value))  # type: ignore
+
+    def __le__(self, value: BaseDice | int) -> DiceModifier:
+        return Le(dice=self.dice, compare=_wrap_scalar(value))  # type: ignore
