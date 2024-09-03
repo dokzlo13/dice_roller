@@ -22,3 +22,41 @@ x = Explode
 r = Reroll
 rng = RangeDice
 lim = Limit
+
+
+__all__ = [
+    "random",
+    "WithGenerateCallback",
+    "WithRollCallback",
+    "Ge",
+    "Gt",
+    "Le",
+    "Limit",
+    "Lt",
+    "BaseDice",
+    "Dice",
+    "DiceMany",
+    "RangeDice",
+    "Scalar",
+    "many",
+    "Explode",
+    "DiceAdd",
+    "DiceDiv",
+    "DiceMul",
+    "DiceSub",
+    "Reroll",
+    "DropHighest",
+    "DropLowest",
+    "KeepHighest",
+    "KeepLowest",
+    "s",
+    "d",
+    "kh",
+    "kl",
+    "dh",
+    "dl",
+    "x",
+    "r",
+    "rng",
+    "lim",
+]
