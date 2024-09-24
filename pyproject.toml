@@ -1,6 +1,6 @@
 [project]
 name = "pydiceroll"
-version = "0.4.0"
+version = "0.4.1"
 description = "Python tool for rolling a lot of dice"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { text = "MIT" }
@@ -26,8 +26,8 @@ Repository = "https://github.com/dokzlo13/dice_roller"
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-where = ["dice_roller"]
+[tool.setuptools]
+packages = ["dice_roller"]
 
 [tool.uv]
 package = false
