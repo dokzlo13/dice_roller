@@ -1,6 +1,6 @@
 [project]
 name = "pydiceroll"
-version = "0.4.1"
+version = "0.4.2"
 description = "Python tool for rolling a lot of dice"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { text = "MIT" }
